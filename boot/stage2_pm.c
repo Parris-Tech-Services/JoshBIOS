@@ -6,8 +6,10 @@
 #include "core/config.h"
 #include "core/health.h"
 
-#define KERNEL_IMAGE_ADDR 0x00010000u
-#define KERNEL_IMAGE_BYTES (512u * 512u)
+#define KERNEL_IMAGE_ADDR 0x01000000u
+#define KERNEL_IMAGE_BYTES (4u * 1024u * 1024u)
+#define BIOS_BOUNCE_ADDR 0x00060000u
+#define BIOS_BOUNCE_SECTORS 64u
 #define CONFIG_PATH "/boot/josh/boot.cfg"
 #define BIOS_DEVICE_SECTORS 0x100000000ULL
 
@@ -146,6 +148,55 @@ static void memcopy(void *destination, const void *source, unsigned int length) 
     unsigned char *d = destination;
     const unsigned char *s = source;
     while (length--) *d++ = *s++;
+}
+
+static int bios_block_read_bounced(
+    void *context,
+    unsigned long long lba,
+    unsigned int sector_count,
+    void *buffer
+) {
+    (void)context;
+    if (!buffer || sector_count == 0u) return -1;
+
+    unsigned char *destination = (unsigned char *)buffer;
+    unsigned int remaining = sector_count;
+    while (remaining != 0u) {
+        unsigned int chunk =
+            remaining > BIOS_BOUNCE_SECTORS ?
+                BIOS_BOUNCE_SECTORS : remaining;
+        if (bios_block_read(
+                0,
+                lba,
+                chunk,
+                (void *)BIOS_BOUNCE_ADDR) != 0) {
+            return -1;
+        }
+
+        unsigned int bytes = chunk * JOSH_BLOCK_SECTOR_SIZE;
+        memcopy(destination, (const void *)BIOS_BOUNCE_ADDR, bytes);
+        destination += bytes;
+        lba += chunk;
+        remaining -= chunk;
+    }
+
+    return 0;
+}
+
+static int staging_range_is_usable(void) {
+    const JoshMemoryMapEntry *entries =
+        (const JoshMemoryMapEntry *)MEMORY_MAP_ADDR;
+    unsigned long long start = KERNEL_IMAGE_ADDR;
+    unsigned long long end = start + KERNEL_IMAGE_BYTES;
+
+    for (unsigned int i = 0; i < e820_count; ++i) {
+        if (entries[i].type != JOSH_MEMORY_USABLE) continue;
+        unsigned long long entry_start = entries[i].base;
+        unsigned long long entry_end = entry_start + entries[i].length;
+        if (entry_end < entry_start) continue;
+        if (start >= entry_start && end <= entry_end) return 1;
+    }
+    return 0;
 }
 
 static int bytes_equal(
@@ -355,7 +406,7 @@ static int load_kernel_file(unsigned int *image_bytes, josh_boot_config_t *confi
     josh_block_device_t device;
     device.context = 0;
     device.sector_count = BIOS_DEVICE_SECTORS;
-    device.read = bios_block_read;
+    device.read = bios_block_read_bounced;
 
     josh_partition_t partition;
     if (josh_partition_find_boot(&device, &partition) != JOSH_PARTITION_OK) {
@@ -652,6 +703,11 @@ int stage2_pm_main(void) {
         for (;;) __asm__ volatile ("cli; hlt");
     }
     serial_write("JOSHBOOT_CPU_LONG_MODE_OK\n");
+
+    if (filesystem_boot && !staging_range_is_usable()) {
+        serial_write("JOSHBOOT_ERROR_STAGING_MEMORY\n");
+        for (;;) __asm__ volatile ("cli; hlt");
+    }
 
     if (image[0] != 0x7f || image[1] != 'E' ||
         image[2] != 'L' || image[3] != 'F') {
