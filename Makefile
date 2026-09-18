@@ -10,6 +10,8 @@ KERNEL_SECTORS := 512
 ASHFALLEN_KERNEL ?= ashfallen/kernel/bin/kernel
 BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
 BAD_CONFIG_IMAGE := $(BUILD)/joshbios-bad-config.img
+ROLLBACK_IMAGE := $(BUILD)/joshbios-rollback.img
+RECOVERY_IMAGE := $(BUILD)/joshbios-recovery.img
 
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
@@ -19,7 +21,7 @@ UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wch
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
 
-.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke bridge-config-fail-smoke uefi uefi-image uefi-smoke
+.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke bridge-config-fail-smoke bridge-rollback-smoke bridge-recovery-smoke uefi uefi-image uefi-smoke
 all: image check
 
 $(BUILD):
@@ -168,6 +170,57 @@ bridge-config-fail-smoke: bridge-image
 	  grep -q JOSHBOOT_ERROR_FILESYSTEM_LOAD $(BUILD)/bad-config.log; \
 	  ! grep -q JOSHOS_BOOT_OK $(BUILD)/bad-config.log; \
 	  echo "JoshBootloader malformed-config QEMU smoke test passed."
+
+bridge-rollback-smoke: bridge-image $(BUILD)/josh-healthctl
+	cp $(BRIDGE_IMAGE) $(ROLLBACK_IMAGE)
+	$(BUILD)/josh-healthctl init $(ROLLBACK_IMAGE) >/dev/null
+	$(BUILD)/josh-healthctl good $(ROLLBACK_IMAGE) previous >/dev/null
+	$(BUILD)/josh-healthctl pending $(ROLLBACK_IMAGE) current >/dev/null
+	@set -e; \
+	  for attempt in 1 2 3; do \
+	    log="$(BUILD)/rollback-$$attempt.log"; \
+	    status=0; \
+	    timeout 9s qemu-system-x86_64 \
+	      -machine pc -m 256M \
+	      -drive format=raw,file=$(ROLLBACK_IMAGE) \
+	      -display none -serial stdio -monitor none -no-reboot \
+	      > "$$log" 2>&1 || status=$$?; \
+	    test $$status -eq 0 -o $$status -eq 124; \
+	    grep -q JOSHBOOT_SLOT_CURRENT "$$log"; \
+	    grep -q JOSHOS_BOOT_OK "$$log"; \
+	  done
+	@status=0; \
+	  timeout 9s qemu-system-x86_64 \
+	    -machine pc -m 256M \
+	    -drive format=raw,file=$(ROLLBACK_IMAGE) \
+	    -display none -serial stdio -monitor none -no-reboot \
+	    > $(BUILD)/rollback-4.log 2>&1 || status=$$?; \
+	  test $$status -eq 0 -o $$status -eq 124; \
+	  grep -q JOSHBOOT_HEALTH_ROLLBACK_PREVIOUS $(BUILD)/rollback-4.log; \
+	  grep -q JOSHBOOT_SLOT_PREVIOUS $(BUILD)/rollback-4.log; \
+	  grep -q JOSHOS_BOOT_OK $(BUILD)/rollback-4.log
+	@$(BUILD)/josh-healthctl show $(ROLLBACK_IMAGE) > $(BUILD)/rollback-state.log
+	@grep -q '^selected=previous$$' $(BUILD)/rollback-state.log
+	@grep -q '^pending_good=0$$' $(BUILD)/rollback-state.log
+	@echo "JoshBootloader persistent previous-good rollback smoke test passed."
+
+bridge-recovery-smoke: bridge-image
+	cp $(BRIDGE_IMAGE) $(RECOVERY_IMAGE)
+	mdel -i "$(RECOVERY_IMAGE)@@1048576" ::/BOOT/JOSH/KERNEL.ELF
+	mdel -i "$(RECOVERY_IMAGE)@@1048576" ::/BOOT/JOSH/KERNEL-PREV.ELF
+	@rm -f $(BUILD)/recovery.log; \
+	  status=0; \
+	  timeout 9s qemu-system-x86_64 \
+	    -machine pc -m 256M \
+	    -drive format=raw,file=$(RECOVERY_IMAGE) \
+	    -display none -serial stdio -monitor none -no-reboot \
+	    > $(BUILD)/recovery.log 2>&1 || status=$$?; \
+	  test $$status -eq 0 -o $$status -eq 124; \
+	  grep -q JOSHBOOT_FALLBACK_PREVIOUS $(BUILD)/recovery.log; \
+	  grep -q JOSHBOOT_FALLBACK_RECOVERY $(BUILD)/recovery.log; \
+	  grep -q JOSHBOOT_SLOT_RECOVERY $(BUILD)/recovery.log; \
+	  grep -q JOSHOS_BOOT_OK $(BUILD)/recovery.log; \
+	  echo "JoshBootloader recovery-kernel fallback smoke test passed."
 
 $(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h boot/elf64.h boot/protocol.h boot/core/config.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@

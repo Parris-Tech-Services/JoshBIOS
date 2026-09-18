@@ -42,7 +42,13 @@ jobs:
       - name: Malformed boot config smoke test
         run: make bridge-config-fail-smoke
 
-      - name: Build UEFI scaffold
+      - name: Persistent previous-good rollback smoke test
+        run: make bridge-rollback-smoke
+
+      - name: Recovery kernel fallback smoke test
+        run: make bridge-recovery-smoke
+
+      - name: Build UEFI image
         run: make uefi-image
 
       - name: Legacy BIOS boot smoke test
@@ -77,12 +83,18 @@ jobs:
             build/joshbios-ashfallen.img.sha256
             build/bridge.log
             build/bad-config.log
+            build/rollback-1.log
+            build/rollback-2.log
+            build/rollback-3.log
+            build/rollback-4.log
+            build/rollback-state.log
+            build/recovery.log
           if-no-files-found: error
 
       - name: Upload UEFI scaffold
         uses: actions/upload-artifact@v4
         with:
-          name: joshuefi-scaffold
+          name: joshuefi-image
           path: |
             build/BOOTX64.EFI
             build/BOOTX64.EFI.sha256
