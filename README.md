@@ -64,14 +64,18 @@ The canonical kernel-side boot contract and whole-stack roadmap live in AshFalle
 ```text
 PC reset
   -> platform BIOS / QEMU SeaBIOS
-  -> JoshBIOS Stage 1 (512-byte boot sector)
-  -> JoshBIOS Stage 2
+  -> JoshBIOS Stage 1 (512-byte boot sector, EDD/LBA disk read)
+  -> JoshBIOS Stage 2 Boot Manager
+       -> timed boot
+       -> diagnostics
+       -> reboot
+  -> versioned JoshBootInfo v1 development hand-off
   -> A20 + GDT + 32-bit protected mode
-  -> JoshBIOS kernel
-  -> direct VGA output
+  -> boot-stack test kernel
+  -> serial boot proof + direct VGA output
 ```
 
-No GRUB. No Linux kernel. No operating-system runtime. The bootloader and kernel are ours.
+No GRUB. No Linux kernel. No operating-system runtime. The bootloader and test payload are ours, and CI now proves the image actually reaches its boot-success marker in QEMU.
 
 ## Build
 

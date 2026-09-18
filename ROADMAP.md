@@ -15,13 +15,16 @@ The matching canonical-kernel contract is documented in `AshFallen/docs/BOOT_ABI
 
 - [x] own 512-byte BIOS boot sector;
 - [x] own Stage 2 loader;
-- [x] BIOS disk loading;
+- [x] BIOS EDD/LBA disk loading;
+- [x] Stage 2 development boot menu with timeout, diagnostics and reboot;
+- [x] versioned JoshBootInfo v1 development hand-off;
 - [x] A20 enable;
 - [x] GDT and 32-bit protected mode;
 - [x] freestanding test payload;
 - [x] direct VGA output;
 - [x] reproducible raw boot image;
-- [x] CI build and structural checks.
+- [x] CI build and structural checks;
+- [x] headless QEMU boot smoke test with serial success markers.
 
 ## v0.2 — Boot the real Josh kernel
 
