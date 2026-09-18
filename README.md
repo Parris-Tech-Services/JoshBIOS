@@ -26,6 +26,7 @@ Within this repository:
 - **JoshFirmware** development lives in [`firmware/`](./firmware)
 - the experimental low-level kernel lives in [`kernel/`](./kernel)
 - the higher-level OS project lives in [Parris-Tech-Services/JoshOS](https://github.com/Parris-Tech-Services/JoshOS)
+- the Stage 0 Josh OS shell/ISO implementation lives in [Parris-Tech-Services/transfer2](https://github.com/Parris-Tech-Services/transfer2)
 
 ## What works now
 
