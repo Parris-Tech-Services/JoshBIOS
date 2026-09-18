@@ -4,6 +4,8 @@ This document covers the lowest Josh-owned layers: the path from CPU/platform re
 
 The long-term objective is not a mythical “one BIOS for every PC”. Firmware support must be explicit, board-specific and recoverable.
 
+The first selected physical development system is **DadLAN Laptop #10, a Compaq 610**. Its machine-specific inventory, safety gates and validation checklist live in [the Compaq 610 hardware target document](HARDWARE_TARGET_COMPAQ_610.md). Selection does not mean support: its current status is **Selected**, not yet physically validated.
+
 ## Responsibility split
 
 ### JoshFirmware
@@ -39,7 +41,8 @@ The name “JoshBIOS” is a product/firmware-environment name. The implementati
 
 Before physical firmware experiments:
 
-- [ ] choose one exact development motherboard/system;
+- [x] choose one exact development system — DadLAN Laptop #10 / Compaq 610;
+- [ ] capture exact baseboard/revision and firmware identifiers;
 - [ ] identify firmware flash chip;
 - [ ] obtain/read a known-good firmware image;
 - [ ] verify external programmer compatibility;
@@ -369,6 +372,8 @@ Physical firmware CI can later use a sacrificial test machine with remotely cont
 ---
 
 # First physical-hardware milestone
+
+The first machine used for this milestone is the **Compaq 610** documented in [HARDWARE_TARGET_COMPAQ_610.md](HARDWARE_TARGET_COMPAQ_610.md). Passing it validates that exact machine only; broader support must be earned target by target.
 
 A legitimate first board milestone requires:
 
