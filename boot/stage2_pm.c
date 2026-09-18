@@ -1,8 +1,12 @@
 #include "elf64.h"
 #include "protocol.h"
+#include "core/block.h"
+#include "core/partition.h"
+#include "core/fat32.h"
 
 #define KERNEL_IMAGE_ADDR 0x00010000u
 #define KERNEL_IMAGE_BYTES (512u * 512u)
+#define KERNEL_PATH "/BOOT/JOSH/KERNEL.ELF"
 
 #define KERNEL_VIRT_BASE 0xffffffff80000000ULL
 #define KERNEL_PHYS_BASE 0x00200000u
@@ -26,7 +30,11 @@
 #define COM1 0x3f8u
 
 extern unsigned short e820_count;
+extern unsigned char vbe_ready;
 extern unsigned char boot_drive;
+extern unsigned long long bios_disk_sectors;
+extern int bios_block_read(void *context, unsigned long long lba,
+                           unsigned int sector_count, void *buffer);
 extern void enter_long_mode(void);
 
 unsigned long long stage2_kernel_entry;
@@ -88,6 +96,60 @@ static unsigned char checksum(
     unsigned char sum = 0;
     while (length--) sum = (unsigned char)(sum + *memory++);
     return sum;
+}
+
+static int load_kernel_from_filesystem(void) {
+    if (bios_disk_sectors < 2u) {
+        serial_write("JOSHBOOT_FAT32_NO_DISK_BOUNDS\n");
+        return -1;
+    }
+
+    josh_block_device_t device = {
+        .context = 0,
+        .sector_count = bios_disk_sectors,
+        .read = bios_block_read
+    };
+
+    josh_partition_t partition;
+    if (josh_partition_find_boot(&device, &partition) != JOSH_PARTITION_OK) {
+        serial_write("JOSHBOOT_FAT32_PARTITION_UNAVAILABLE\n");
+        return -1;
+    }
+
+    josh_fat32_t filesystem;
+    if (josh_fat32_mount(&device, &partition, &filesystem) != JOSH_FAT32_OK) {
+        serial_write("JOSHBOOT_FAT32_MOUNT_FAILED\n");
+        return -1;
+    }
+
+    josh_fat32_file_t kernel;
+    if (josh_fat32_open_path(&filesystem, KERNEL_PATH, &kernel) != JOSH_FAT32_OK) {
+        serial_write("JOSHBOOT_FAT32_KERNEL_NOT_FOUND\n");
+        return -1;
+    }
+
+    if (kernel.size == 0 || kernel.size > KERNEL_IMAGE_BYTES) {
+        serial_write("JOSHBOOT_FAT32_KERNEL_SIZE_INVALID\n");
+        return -1;
+    }
+
+    memzero((void *)KERNEL_IMAGE_ADDR, KERNEL_IMAGE_BYTES);
+
+    unsigned int bytes_read = 0;
+    if (josh_fat32_read_file(
+            &filesystem,
+            &kernel,
+            0,
+            (void *)KERNEL_IMAGE_ADDR,
+            kernel.size,
+            &bytes_read
+        ) != JOSH_FAT32_OK || bytes_read != kernel.size) {
+        serial_write("JOSHBOOT_FAT32_KERNEL_READ_FAILED\n");
+        return -1;
+    }
+
+    serial_write("JOSHBOOT_FAT32_KERNEL_OK\n");
+    return 0;
 }
 
 static unsigned long long find_rsdp(void) {
@@ -297,15 +359,31 @@ static void fill_boot_info(const JoshElf64Summary *summary) {
 }
 
 int stage2_pm_main(void) {
-    unsigned char *image = (unsigned char *)KERNEL_IMAGE_ADDR;
+    serial_init();
 
+    /*
+     * Filesystem loading is the normal path. Failure is deliberately nonfatal
+     * while the verified raw bootstrap remains our recovery/development path.
+     */
+    (void)load_kernel_from_filesystem();
+
+    unsigned char *image = (unsigned char *)KERNEL_IMAGE_ADDR;
     if (image[0] != 0x7f || image[1] != 'E' ||
         image[2] != 'L' || image[3] != 'F') {
+        serial_write("JOSHBOOT_NO_ELF64_USING_LEGACY_FALLBACK\n");
         return 0;
     }
 
-    serial_init();
     serial_write("JOSHBOOT_ELF64_DETECTED\n");
+
+    if (e820_count == 0) {
+        serial_write("JOSHBOOT_ERROR_E820\n");
+        for (;;) __asm__ volatile ("cli; hlt");
+    }
+    if (!vbe_ready) {
+        serial_write("JOSHBOOT_ERROR_VBE\n");
+        for (;;) __asm__ volatile ("cli; hlt");
+    }
 
     JoshElf64Summary summary;
     if (load_elf(&summary) != 0) {
