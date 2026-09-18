@@ -59,6 +59,69 @@ static void serial_init(void) {
     out8(COM1 + 4u, 0x0b);
 }
 
+static int cpu_has_cpuid(void) {
+    unsigned int original;
+    unsigned int changed;
+
+    __asm__ volatile (
+        "pushfl\n\t"
+        "popl %0\n\t"
+        : "=r"(original)
+    );
+
+    unsigned int toggled = original ^ (1u << 21);
+    __asm__ volatile (
+        "pushl %1\n\t"
+        "popfl\n\t"
+        "pushfl\n\t"
+        "popl %0\n\t"
+        "pushl %2\n\t"
+        "popfl\n\t"
+        : "=r"(changed)
+        : "r"(toggled), "r"(original)
+        : "cc"
+    );
+
+    return ((changed ^ original) & (1u << 21)) != 0;
+}
+
+static void cpuid(
+    unsigned int leaf,
+    unsigned int *eax_out,
+    unsigned int *ebx_out,
+    unsigned int *ecx_out,
+    unsigned int *edx_out
+) {
+    unsigned int eax;
+    unsigned int ebx;
+    unsigned int ecx;
+    unsigned int edx;
+    __asm__ volatile (
+        "cpuid"
+        : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+        : "a"(leaf), "c"(0u)
+    );
+    if (eax_out) *eax_out = eax;
+    if (ebx_out) *ebx_out = ebx;
+    if (ecx_out) *ecx_out = ecx;
+    if (edx_out) *edx_out = edx;
+}
+
+static int cpu_has_long_mode(void) {
+    if (!cpu_has_cpuid()) return 0;
+
+    unsigned int eax;
+    unsigned int edx;
+    cpuid(1u, &eax, 0, 0, &edx);
+    if ((edx & (1u << 6)) == 0) return 0; /* PAE */
+
+    cpuid(0x80000000u, &eax, 0, 0, 0);
+    if (eax < 0x80000001u) return 0;
+
+    cpuid(0x80000001u, 0, 0, 0, &edx);
+    return (edx & (1u << 29)) != 0; /* Long mode */
+}
+
 static void serial_write(const char *message) {
     while (*message) {
         while ((in8(COM1 + 5u) & 0x20u) == 0) {
@@ -362,6 +425,12 @@ int stage2_pm_main(void) {
     unsigned int image_bytes = KERNEL_IMAGE_BYTES;
 
     serial_init();
+
+    if (!cpu_has_long_mode()) {
+        serial_write("JOSHBOOT_ERROR_CPU_LONG_MODE\n");
+        for (;;) __asm__ volatile ("cli; hlt");
+    }
+    serial_write("JOSHBOOT_CPU_LONG_MODE_OK\n");
 
     if (image[0] != 0x7f || image[1] != 'E' ||
         image[2] != 'L' || image[3] != 'F') {
