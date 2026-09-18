@@ -100,7 +100,7 @@ smoke: all
 
 bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 	@test -f "$(ASHFALLEN_KERNEL)" || { echo "AshFallen kernel not found: $(ASHFALLEN_KERNEL)"; exit 1; }
-	@kernel_size=$(wc -c < "$(ASHFALLEN_KERNEL)"); max=$(( $(KERNEL_SECTORS) * 512 )); 	  test $kernel_size -le $max || { echo "AshFallen kernel too large for loader buffer: $kernel_size > $max"; exit 1; }
+	@kernel_size=$$(wc -c < "$(ASHFALLEN_KERNEL)"); max=$$(( $(KERNEL_SECTORS) * 512 )); 	  test $$kernel_size -le $$max || { echo "AshFallen kernel too large for loader buffer: $$kernel_size > $$max"; exit 1; }
 	truncate -s 67108864 $(BRIDGE_IMAGE)
 	dd if=$(BUILD)/stage1.bin of=$(BRIDGE_IMAGE) conv=notrunc status=none
 	dd if=$(BUILD)/stage2.bin of=$(BRIDGE_IMAGE) bs=512 seek=1 conv=notrunc status=none
