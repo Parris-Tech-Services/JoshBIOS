@@ -445,3 +445,62 @@ Update Stage1/Stage2/Makefile together so that:
 8. QEMU must reach AshFallen's existing `JOSHOS_BOOT_OK` serial marker before this milestone is called integrated.
 
 Keep Limine working as the reference path throughout.
+
+
+---
+
+## Recovery checkpoint — 18 Sep 2026
+
+This section is an engineering hand-off, not a claim that the integration is finished.
+
+### Landed on `main`
+
+- `63bc0ad` — ELF64 parser interface.
+- `29fbd68` — strict x86-64 ET_EXEC ELF validation.
+- `b764fa4` — malformed ELF64 host-test fixtures.
+- `76c4f41` — `make host-tests` target.
+- `5ab1aed` — CI runs the ELF64 host tests.
+- `a150484` — dormant protected-mode ELF64 load planner, Josh Boot Protocol builder, E820/VBE consumer, ACPI/SMBIOS discovery and bootstrap page-table builder in `boot/stage2_pm.c`.
+
+AshFallen currently has the matching Josh Boot Protocol v0 adapter and host tests on its `main` branch (commit `529acf1` also added the IDT exception panic path). Limine remains the working reference path.
+
+### What is implemented but not yet integrated
+
+`boot/stage2_pm.c` currently contains substantive code for:
+
+- validating the preloaded canonical ELF64 image;
+- copying `PT_LOAD` segments into a physical kernel window;
+- zeroing BSS;
+- calculating canonical physical/virtual kernel bounds;
+- building a v0 `JoshBootInfo`;
+- translating BIOS E820 entries already captured by Stage2;
+- consuming VBE framebuffer information already captured by Stage2;
+- scanning for ACPI RSDP and SMBIOS entry points;
+- building bootstrap x86-64 page tables;
+- preparing the canonical kernel entry address.
+
+This code compiles as 32-bit freestanding C, but it is **dormant**: current Stage2 still boots the small local 32-bit test payload. Do not call the JoshBootloader→AshFallen path integrated yet.
+
+### Next atomic change
+
+The next commit should update Stage1, Stage2 and the Makefile together so the live BIOS path can safely exercise `stage2_pm.c` without leaving `main` half-switched:
+
+1. grow Stage2 allocation from 16 to 32 sectors;
+2. move the preloaded kernel image start from LBA 17 to LBA 33;
+3. preload up to 512 sectors of the canonical ELF64 image at physical `0x10000`;
+4. collect E820 into the shared v0 memory-map layout at `0x59000`;
+5. request/set a 32-bpp VBE linear framebuffer and retain the mode info at `0x5a000`;
+6. enter protected mode and call `stage2_pm_main`;
+7. add the assembly `enter_long_mode` routine that enables PAE, EFER.LME and paging, loads the 64-bit GDT, installs a known stack, and jumps to `stage2_kernel_entry`;
+8. pass `JOSH_LOADER_MAGIC1`, `JOSH_LOADER_MAGIC2`, and the `JoshBootInfo *` in the exact registers expected by the AshFallen `kmain`;
+9. make a new integration image by copying AshFallen's canonical `kernel/bin/kernel` into the disk image;
+10. require `JOSHOS_KERNEL_ENTERED`, `JOSHOS_BOOT_ADAPTER_OK`, and `JOSHOS_BOOT_OK` in QEMU CI.
+
+If the canonical-kernel path fails, preserve the existing local 32-bit payload as an explicit regression target rather than deleting it.
+
+### Current strongest truthful labels
+
+- ELF64 parser: **implemented + host-tested**.
+- Josh Boot Protocol layout: **implemented on both sides + kernel host-tested**.
+- protected-mode ELF64 load/page-table planner: **implemented, not integrated**.
+- JoshBootloader → canonical AshFallen boot: **not yet working / not yet verified**.
