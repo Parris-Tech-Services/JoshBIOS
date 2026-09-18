@@ -10,20 +10,34 @@ permissions:
 jobs:
   build-and-boot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout JoshBIOS
+        uses: actions/checkout@v4
+
+      - name: Checkout canonical AshFallen kernel
+        uses: actions/checkout@v5
+        with:
+          repository: joshuaparris-max/AshFallen
+          path: ashfallen
+          persist-credentials: false
 
       - name: Install build and VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 clang lld mtools ovmf
+          sudo apt-get install -y qemu-system-x86 clang lld mtools ovmf curl git
 
-      - name: ELF64 parser host tests
+      - name: Host parser and storage tests
         run: make host-tests
 
       - name: Build legacy BIOS path
         run: make all
+
+      - name: Build canonical AshFallen kernel
+        run: make -C ashfallen kernel
+
+      - name: JoshBootloader to AshFallen bridge smoke test
+        run: make bridge-smoke
 
       - name: Build UEFI scaffold
         run: make uefi-image
@@ -34,26 +48,31 @@ jobs:
       - name: UEFI OVMF boot smoke test
         run: make uefi-smoke
 
-      - name: Show image layout
+      - name: Show image layout and boot evidence
         run: |
-          file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img build/BOOTX64.EFI build/joshuefi.img
-          wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img build/BOOTX64.EFI build/joshuefi.img
+          file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img build/joshbios-ashfallen.img build/BOOTX64.EFI build/joshuefi.img
+          wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img build/joshbios-ashfallen.img build/BOOTX64.EFI build/joshuefi.img
+          cat build/bridge.log
           cat build/boot.log
           cat build/uefi.log
 
       - name: Record checksums
         run: |
           sha256sum build/joshbios.img | tee build/joshbios.img.sha256
+          sha256sum build/joshbios-ashfallen.img | tee build/joshbios-ashfallen.img.sha256
           sha256sum build/BOOTX64.EFI | tee build/BOOTX64.EFI.sha256
           sha256sum build/joshuefi.img | tee build/joshuefi.img.sha256
 
-      - name: Upload BIOS boot image
+      - name: Upload BIOS boot images
         uses: actions/upload-artifact@v4
         with:
-          name: joshbios-image
+          name: joshbios-images
           path: |
             build/joshbios.img
             build/joshbios.img.sha256
+            build/joshbios-ashfallen.img
+            build/joshbios-ashfallen.img.sha256
+            build/bridge.log
           if-no-files-found: error
 
       - name: Upload UEFI scaffold
