@@ -4,6 +4,29 @@
 
 The long-term goal is to own the path from power-on firmware through the bootloader and into a JoshBIOS kernel. The first milestone deliberately starts with the part we can make generic and test safely: a real BIOS boot sector, our own Stage 2 loader and our own freestanding kernel.
 
+## JoshOS ecosystem
+
+JoshBIOS is the low-level boot stack for [JoshOS](https://github.com/Parris-Tech-Services/JoshOS).
+
+```text
+Power button
+   ↓
+JoshFirmware
+   ↓
+JoshBIOS
+   ↓
+JoshBootloader
+   ↓
+JoshOS
+```
+
+Within this repository:
+
+- **JoshBootloader** lives in [`boot/`](./boot)
+- **JoshFirmware** development lives in [`firmware/`](./firmware)
+- the experimental low-level kernel lives in [`kernel/`](./kernel)
+- the higher-level OS project lives in [Parris-Tech-Services/JoshOS](https://github.com/Parris-Tech-Services/JoshOS)
+
 ## What works now
 
 ```text
