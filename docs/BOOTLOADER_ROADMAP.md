@@ -98,7 +98,7 @@ Add host-side parser tests and malformed-image fixtures.
 
 # B3 — x86-64 hand-off
 
-- [ ] verify long-mode CPU support;
+- [x] verify long-mode CPU support;
 - [x] build required page tables;
 - [x] enable PAE/long mode/paging in correct sequence;
 - [x] install temporary GDT;
@@ -107,6 +107,8 @@ Add host-side parser tests and malformed-image fixtures.
 - [ ] jump to canonical kernel entry.
 
 Document exact machine state at hand-off.
+
+Stage2 now checks CPUID availability, PAE and the extended long-mode capability bit before touching long-mode control state. QEMU integration requires the `JOSHBOOT_CPU_LONG_MODE_OK` marker before hand-off.
 
 Do not rely on accidental register values.
 
@@ -533,3 +535,22 @@ Strongest truthful labels:
 - JoshBootloader → canonical kernel via FAT32: **verified in QEMU legacy-BIOS path**;
 - physical hardware support: **not yet verified**;
 - UEFI loader: **scaffolded/boot-tested to entry only**, not yet a kernel loader.
+
+
+---
+
+## Verified platform-metadata checkpoint — 18 Sep 2026
+
+GitHub Actions run `35345509864` requires and observed:
+
+```text
+JOSHBOOT_CPU_LONG_MODE_OK
+JOSHBOOT_HANDOFF_READY
+JOSHOS_RSDP_OK
+JOSHOS_SMBIOS_OK
+JOSHOS_BOOT_OK
+```
+
+This verifies that the current legacy-BIOS QEMU path checks the CPU before entering long mode and that the ACPI RSDP and SMBIOS pointers discovered by JoshBootloader survive the Josh Boot Protocol hand-off into the canonical AshFallen kernel.
+
+This is QEMU evidence, not physical-hardware support.
