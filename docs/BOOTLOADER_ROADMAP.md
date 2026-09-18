@@ -8,7 +8,7 @@ The bootloader must not become a miniature operating system.
 
 ## Current state
 
-The current experimental path:
+The tiny fixed-extent 32-bit payload remains as a regression target, but the verified legacy-BIOS integration path is now:
 
 ```text
 legacy BIOS
@@ -17,30 +17,22 @@ legacy BIOS
     ↓
 Stage 2
     ↓
-A20 + GDT
+MBR partition discovery
     ↓
-32-bit protected mode
+FAT32
     ↓
-small test kernel
-```
-
-This proves ownership of a basic boot chain.
-
-The next target is the real system:
-
-```text
-JoshFirmware / BIOS / UEFI
+/boot/josh/kernel.elf
     ↓
-JoshBootloader
+ELF64 loader
     ↓
-ELF64 canonical Josh kernel
+x86-64 long mode
     ↓
 Josh Boot Protocol
     ↓
-AshFallen/kernel
+canonical AshFallen kernel
 ```
 
-Limine remains the reference boot path while this matures.
+GitHub CI boots this path in QEMU and requires the canonical kernel's `JOSHOS_BOOT_OK` marker. Limine remains the independent reference boot path.
 
 ---
 
@@ -62,14 +54,14 @@ Rename/document it clearly as a **test payload**, never the canonical Josh kerne
 
 Replace fixed-sector assumptions.
 
-- [ ] block-read abstraction;
-- [ ] BIOS disk path isolated behind an adapter;
+- [x] block-read abstraction;
+- [x] BIOS disk path isolated behind an INT 13h EDD adapter;
 - [ ] UEFI file/block path later;
-- [ ] MBR/GPT partition discovery;
-- [ ] FAT32 reader;
-- [ ] path lookup;
-- [ ] file size/range validation;
-- [ ] robust short-read/error handling.
+- [x] MBR/GPT partition discovery (GPT host-tested; MBR used by the integration image);
+- [x] FAT32 reader;
+- [x] 8.3 path lookup;
+- [x] file size/range validation;
+- [x] short-read/corruption/error handling.
 
 Initial layout should be deliberately boring and documented.
 
@@ -403,7 +395,7 @@ After that, add the UEFI adapter and broaden recovery/security.
 
 ---
 
-# Active implementation checkpoint — 18 Sep 2026
+# Historical implementation checkpoint — 18 Sep 2026 (superseded)
 
 This section is a recovery checkpoint for concurrent coding agents. It records only code that currently exists on `main`.
 
@@ -425,11 +417,9 @@ This section is a recovery checkpoint for concurrent coding agents. It records o
   - prepares the canonical AshFallen entry address;
   - calls an external `enter_long_mode()` hand-off routine.
 
-## Important limitation
+## Historical limitation at this checkpoint
 
-The current working Stage1/Stage2 path has **not yet been switched** to the new ELF64/long-mode path. The existing 32-bit test payload remains the active boot target, so the new `stage2_pm.c` integration code is presently dormant.
-
-Do not claim that JoshBootloader boots AshFallen yet.
+At this point in the history, the Stage1/Stage2 path had not yet been switched to the ELF64/long-mode path. This limitation is **superseded by the verified integration checkpoints below** and is retained only to explain the sequence of work.
 
 ## Exact next atomic change
 
@@ -497,6 +487,49 @@ Relevant implementation commits include:
 - Josh Boot Protocol v0 kernel hand-off: **implemented + integration-tested in QEMU**.
 - JoshBootloader → canonical AshFallen kernel: **verified in QEMU legacy-BIOS path**.
 - Limine path: **still retained and working as the reference path**.
-- Filesystem-based kernel discovery: **not integrated yet**; the verified bridge still uses a fixed bootstrap disk extent.
+- Filesystem-based kernel discovery: **implemented and integration-tested** on the legacy-BIOS QEMU path using MBR → FAT32 → `/boot/josh/kernel.elf`.
 - Generic hardware support: **not claimed**; this evidence is QEMU-specific.
 
+
+
+---
+
+## Verified filesystem integration checkpoint — 18 Sep 2026
+
+GitHub Actions run `35344381859` verified that the canonical kernel is no longer dependent on a hard-coded kernel disk extent in the integration image.
+
+The bridge image contains an MBR FAT32 partition beginning at LBA 2048 and stores the canonical kernel at:
+
+```text
+/BOOT/JOSH/KERNEL.ELF
+```
+
+The live Stage2 path uses the BIOS EDD block adapter, partition parser and FAT32 reader to locate and read that file into the ELF64 staging buffer.
+
+The run observed, in order:
+
+```text
+JOSHBOOT_FS_LOAD_BEGIN
+JOSHBOOT_PARTITION_OK
+JOSHBOOT_FAT32_OK
+JOSHBOOT_KERNEL_PATH_OK
+JOSHBOOT_KERNEL_FILE_LOADED
+JOSHBOOT_ELF64_DETECTED
+JOSHBOOT_HANDOFF_READY
+JOSHOS_KERNEL_ENTERED
+JOSHOS_GDT_TSS_OK
+JOSHOS_IDT_OK
+JOSHOS_BOOT_ADAPTER_OK
+JOSHOS_BOOT_OK
+```
+
+Strongest truthful labels:
+
+- BIOS block adapter: **implemented + integration-tested in QEMU**;
+- MBR discovery: **implemented + integration-tested in QEMU**;
+- GPT discovery: **implemented + host-tested**, not yet used by the bridge image;
+- FAT32 reader/path lookup: **implemented + host-tested + integration-tested in QEMU**;
+- canonical kernel file loading: **implemented + integration-tested in QEMU**;
+- JoshBootloader → canonical kernel via FAT32: **verified in QEMU legacy-BIOS path**;
+- physical hardware support: **not yet verified**;
+- UEFI loader: **scaffolded/boot-tested to entry only**, not yet a kernel loader.
