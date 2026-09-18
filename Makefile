@@ -55,7 +55,7 @@ $(BUILD)/stage1.bin: $(BUILD)/stage1.o
 $(BUILD)/stage2.o: boot/stage2.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h boot/core/block.h boot/core/partition.h boot/core/fat32.h boot/core/config.h | $(BUILD)
+$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h boot/core/block.h boot/core/partition.h boot/core/fat32.h boot/core/config.h boot/core/health.h | $(BUILD)
 	$(CC) $(CFLAGS) -Iboot -c $< -o $@
 
 $(BUILD)/elf64_pm.o: boot/elf64.c boot/elf64.h | $(BUILD)
@@ -70,13 +70,16 @@ $(BUILD)/fat32_pm.o: boot/core/fat32.c boot/core/fat32.h boot/core/block.h boot/
 $(BUILD)/config_pm.o: boot/core/config.c boot/core/config.h | $(BUILD)
 	$(CC) $(CFLAGS) -Iboot/core -c $< -o $@
 
+$(BUILD)/health_pm.o: boot/core/health.c boot/core/health.h | $(BUILD)
+	$(CC) $(CFLAGS) -Iboot/core -c $< -o $@
+
 $(BUILD)/runtime32.o: boot/runtime32.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/bios_block.o: boot/bios_block.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o $(BUILD)/partition_pm.o $(BUILD)/fat32_pm.o $(BUILD)/config_pm.o $(BUILD)/runtime32.o $(BUILD)/bios_block.o
+$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o $(BUILD)/partition_pm.o $(BUILD)/fat32_pm.o $(BUILD)/config_pm.o $(BUILD)/health_pm.o $(BUILD)/runtime32.o $(BUILD)/bios_block.o
 	$(LD) -m elf_i386 -Ttext 0x8000 --oformat binary -e _start $^ -o $@
 
 $(BUILD)/entry.o: kernel/entry.S | $(BUILD)
@@ -130,10 +133,14 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 		'entry=josh' \
 		'name=Josh OS' \
 		'kernel=/boot/josh/kernel.elf' \
+		'previous_kernel=/boot/josh/kernel-prev.elf' \
+		'recovery_kernel=/boot/josh/recovery.elf' \
 		'cmdline=josh.boot=normal' \
 		'flags=development' > $(BUILD)/BOOT.CFG
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" $(BUILD)/BOOT.CFG ::/BOOT/JOSH/BOOT.CFG
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL-PREV.ELF
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/RECOVERY.ELF
 	@echo "JoshBootloader FAT32 + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
 
 bridge-smoke: bridge-image

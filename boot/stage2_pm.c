@@ -4,6 +4,7 @@
 #include "core/partition.h"
 #include "core/fat32.h"
 #include "core/config.h"
+#include "core/health.h"
 
 #define KERNEL_IMAGE_ADDR 0x00010000u
 #define KERNEL_IMAGE_BYTES (512u * 512u)
@@ -25,6 +26,7 @@
 #define VBE_INFO_ADDR 0x0005a000u
 #define LOADER_NAME_ADDR 0x0005b000u
 #define CMDLINE_ADDR 0x0005c000u
+#define HEALTH_BUFFER_ADDR 0x0005d000u
 
 #define PAGE_PRESENT 0x001ULL
 #define PAGE_RW 0x002ULL
@@ -38,6 +40,8 @@ extern unsigned char filesystem_boot;
 extern void enter_long_mode(void);
 extern int bios_block_read(void *context, unsigned long long lba,
                            unsigned int sector_count, void *buffer);
+extern int bios_block_write(void *context, unsigned long long lba,
+                            unsigned int sector_count, const void *buffer);
 
 unsigned long long stage2_kernel_entry;
 
@@ -223,6 +227,122 @@ static unsigned long long find_smbios(void) {
     return 0;
 }
 
+static int health_read_copy(
+    unsigned long long lba,
+    josh_boot_health_record_t *record
+) {
+    if (bios_block_read(0, lba, 1u, (void *)HEALTH_BUFFER_ADDR) != 0) return 0;
+    memcopy(record, (const void *)HEALTH_BUFFER_ADDR, sizeof(*record));
+    return josh_boot_health_valid(record);
+}
+
+static int health_write_copy(
+    unsigned long long lba,
+    const josh_boot_health_record_t *record
+) {
+    memzero((void *)HEALTH_BUFFER_ADDR, JOSH_BOOT_HEALTH_SECTOR_SIZE);
+    memcopy((void *)HEALTH_BUFFER_ADDR, record, sizeof(*record));
+    if (bios_block_write(0, lba, 1u, (const void *)HEALTH_BUFFER_ADDR) != 0) return 0;
+
+    josh_boot_health_record_t verify;
+    if (!health_read_copy(lba, &verify)) return 0;
+    return verify.generation == record->generation &&
+           verify.checksum == record->checksum;
+}
+
+static int health_load(josh_boot_health_record_t *record) {
+    josh_boot_health_record_t a;
+    josh_boot_health_record_t b;
+    memzero(&a, sizeof(a));
+    memzero(&b, sizeof(b));
+    (void)health_read_copy(JOSH_BOOT_HEALTH_LBA_A, &a);
+    (void)health_read_copy(JOSH_BOOT_HEALTH_LBA_B, &b);
+
+    if (!josh_boot_health_choose(&a, &b, record)) {
+        josh_boot_health_default(record);
+        if (!health_write_copy(JOSH_BOOT_HEALTH_LBA_A, record) ||
+            !health_write_copy(JOSH_BOOT_HEALTH_LBA_B, record)) {
+            serial_write("JOSHBOOT_WARN_HEALTH_INIT_PERSIST\n");
+        } else {
+            serial_write("JOSHBOOT_HEALTH_INITIALIZED\n");
+        }
+        return 1;
+    }
+
+    serial_write("JOSHBOOT_HEALTH_LOADED\n");
+    return 1;
+}
+
+static int health_persist(const josh_boot_health_record_t *record) {
+    unsigned long long lba =
+        (record->generation & 1u) ?
+            JOSH_BOOT_HEALTH_LBA_B : JOSH_BOOT_HEALTH_LBA_A;
+    if (!health_write_copy(lba, record)) {
+        serial_write("JOSHBOOT_WARN_HEALTH_PERSIST\n");
+        return 0;
+    }
+    serial_write("JOSHBOOT_HEALTH_PERSISTED\n");
+    return 1;
+}
+
+static const char *kernel_path_for_slot(
+    const josh_boot_config_t *config,
+    josh_boot_slot_t slot
+) {
+    if (slot == JOSH_BOOT_SLOT_CURRENT) return config->kernel_path;
+    if (slot == JOSH_BOOT_SLOT_PREVIOUS) return config->previous_kernel_path;
+    return config->recovery_kernel_path;
+}
+
+static void write_slot_marker(josh_boot_slot_t slot) {
+    if (slot == JOSH_BOOT_SLOT_CURRENT) {
+        serial_write("JOSHBOOT_SLOT_CURRENT\n");
+    } else if (slot == JOSH_BOOT_SLOT_PREVIOUS) {
+        serial_write("JOSHBOOT_SLOT_PREVIOUS\n");
+    } else {
+        serial_write("JOSHBOOT_SLOT_RECOVERY\n");
+    }
+}
+
+static int read_kernel_candidate(
+    josh_fat32_t *filesystem,
+    const char *path,
+    unsigned int *image_bytes
+) {
+    if (!path || path[0] == '\0') return -1;
+
+    josh_fat32_file_t kernel;
+    if (josh_fat32_open_path(filesystem, path, &kernel) != JOSH_FAT32_OK) {
+        return -1;
+    }
+    if (kernel.size == 0 || kernel.size > KERNEL_IMAGE_BYTES) return -1;
+
+    unsigned int bytes_read = 0;
+    if (josh_fat32_read_file(
+            filesystem,
+            &kernel,
+            0,
+            (void *)KERNEL_IMAGE_ADDR,
+            kernel.size,
+            &bytes_read
+        ) != JOSH_FAT32_OK ||
+        bytes_read != kernel.size) {
+        return -1;
+    }
+
+    JoshElf64Summary summary;
+    if (josh_elf64_validate(
+            (const void *)KERNEL_IMAGE_ADDR,
+            kernel.size,
+            &summary
+        ) != JOSH_ELF64_OK) {
+        return -1;
+    }
+
+    *image_bytes = kernel.size;
+    return 0;
+}
+
 static int load_kernel_file(unsigned int *image_bytes, josh_boot_config_t *config) {
     if (!image_bytes || !config) return -1;
 
@@ -276,35 +396,70 @@ static int load_kernel_file(unsigned int *image_bytes, josh_boot_config_t *confi
     }
     serial_write("JOSHBOOT_CONFIG_OK\n");
 
-    josh_fat32_file_t kernel;
-    if (josh_fat32_open_path(&filesystem, config->kernel_path, &kernel) != JOSH_FAT32_OK) {
-        serial_write("JOSHBOOT_ERROR_KERNEL_PATH\n");
-        return -1;
-    }
-    serial_write("JOSHBOOT_KERNEL_PATH_OK\n");
-
-    if (kernel.size == 0 || kernel.size > KERNEL_IMAGE_BYTES) {
-        serial_write("JOSHBOOT_ERROR_KERNEL_SIZE\n");
+    josh_boot_health_record_t health;
+    if (!health_load(&health)) {
+        serial_write("JOSHBOOT_ERROR_HEALTH_LOAD\n");
         return -1;
     }
 
-    unsigned int bytes_read = 0;
-    if (josh_fat32_read_file(
-            &filesystem,
-            &kernel,
-            0,
-            (void *)KERNEL_IMAGE_ADDR,
-            kernel.size,
-            &bytes_read
-        ) != JOSH_FAT32_OK ||
-        bytes_read != kernel.size) {
-        serial_write("JOSHBOOT_ERROR_KERNEL_READ\n");
-        return -1;
+    uint32_t old_slot = health.selected_slot;
+    uint64_t old_generation = health.generation;
+    int was_pending = health.pending_good != 0u;
+    josh_boot_slot_t slot = josh_boot_health_prepare_attempt(
+        &health, JOSH_BOOT_HEALTH_MAX_ATTEMPTS);
+
+    if (health.generation != old_generation) (void)health_persist(&health);
+    if (was_pending && old_slot != (uint32_t)slot) {
+        if (slot == JOSH_BOOT_SLOT_PREVIOUS) {
+            serial_write("JOSHBOOT_HEALTH_ROLLBACK_PREVIOUS\n");
+        } else {
+            serial_write("JOSHBOOT_HEALTH_ROLLBACK_RECOVERY\n");
+        }
     }
 
-    *image_bytes = kernel.size;
-    serial_write("JOSHBOOT_KERNEL_FILE_LOADED\n");
-    return 0;
+    for (unsigned int candidate = 0; candidate < 3u; ++candidate) {
+        const char *path = kernel_path_for_slot(config, slot);
+        write_slot_marker(slot);
+
+        if (read_kernel_candidate(&filesystem, path, image_bytes) == 0) {
+            serial_write("JOSHBOOT_KERNEL_PATH_OK\n");
+            serial_write("JOSHBOOT_KERNEL_FILE_LOADED\n");
+            return 0;
+        }
+
+        if (slot == JOSH_BOOT_SLOT_CURRENT &&
+            config->previous_kernel_path[0] != '\0') {
+            if (!josh_boot_health_select_fallback(
+                    &health,
+                    JOSH_BOOT_SLOT_PREVIOUS,
+                    JOSH_BOOT_FAILURE_KERNEL_FILE)) {
+                break;
+            }
+            (void)health_persist(&health);
+            serial_write("JOSHBOOT_FALLBACK_PREVIOUS\n");
+            slot = JOSH_BOOT_SLOT_PREVIOUS;
+            continue;
+        }
+
+        if (slot != JOSH_BOOT_SLOT_RECOVERY &&
+            config->recovery_kernel_path[0] != '\0') {
+            if (!josh_boot_health_select_fallback(
+                    &health,
+                    JOSH_BOOT_SLOT_RECOVERY,
+                    JOSH_BOOT_FAILURE_KERNEL_FILE)) {
+                break;
+            }
+            (void)health_persist(&health);
+            serial_write("JOSHBOOT_FALLBACK_RECOVERY\n");
+            slot = JOSH_BOOT_SLOT_RECOVERY;
+            continue;
+        }
+
+        break;
+    }
+
+    serial_write("JOSHBOOT_ERROR_KERNEL_CANDIDATES\n");
+    return -1;
 }
 
 static void build_page_tables(void) {

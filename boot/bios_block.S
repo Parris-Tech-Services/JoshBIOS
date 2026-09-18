@@ -1,10 +1,18 @@
 .section .text
 .global bios_block_read
+.global bios_block_write
 .extern boot_drive
 .extern gdt_descriptor
 
 .code32
 bios_block_read:
+    movb $0x42, bios_operation
+    jmp bios_block_common
+
+bios_block_write:
+    movb $0x43, bios_operation
+
+bios_block_common:
     pushl %ebp
     movl %esp, %ebp
     pushal
@@ -92,7 +100,8 @@ bios_real_mode:
 
     movw $bios_dap, %si
     movb boot_drive, %dl
-    movb $0x42, %ah
+    xorb %al, %al
+    movb bios_operation, %ah
     int $0x13
     jc 1f
     movb $0, bios_status
@@ -113,6 +122,8 @@ bios_saved_esp:
     .long 0
 bios_status:
     .byte 1
+bios_operation:
+    .byte 0x42
 .align 4
 bios_dap:
     .byte 0x10
