@@ -8,20 +8,93 @@ DadLAN Laptop #10, a **Compaq 610**, is the first physical machine the Josh OS s
 
 A successful boot on this laptop proves only that this exact target reached the tested milestone. It does not imply generic PC, Compaq-family or Core 2-era hardware support.
 
-## Recorded inventory
+## Current inventory: exact unit vs model-family facts
 
-The project currently records the following inventory for DadLAN Laptop #10:
+### Confirmed/recorded for DadLAN Laptop #10
 
-| Component | Recorded value | Verification status |
+These are the strongest current unit-specific records from the DadLAN inventory and prior hardware captures:
+
+| Component | Current record | Status |
 | --- | --- | --- |
-| System | Compaq 610 | Known from fleet inventory |
-| CPU | Intel Core 2 Duo T5870 | Recorded; x86-64 capable |
-| RAM | 3 GB | Recorded |
-| Internal storage | 120 GB HDD | Recorded; intentionally not SSD-upgraded |
-| Graphics | Intel GMA X3100 | Recorded |
-| Current installed OS | Windows 10 32-bit | Recorded |
+| Fleet identity | DadLAN Laptop #10 | Confirmed |
+| System | HP Compaq 610 | Confirmed |
+| Product/SKU | VE908PA#ABG | Recorded from prior inventory; re-read service tag before firmware work |
+| Hostname | DESKTOP-MMR0H5N | Confirmed from Windows/Action1 inventory |
+| CPU | Intel Core 2 Duo T5870 @ 2.00 GHz, 2 cores / 2 threads | Confirmed |
+| CPU ISA | x86-64 / Intel 64 capable; Execute Disable support | Model-backed and consistent with installed CPU |
+| RAM | 3 GB DDR2 | Latest observed inventory; supersedes older 2 GB / 4 GB notes |
+| Graphics | Mobile Intel 965 Express / GMA X3100 integrated graphics | Confirmed |
+| Internal storage | Hitachi HTS543212L9A300, 120 GB class (111.8 GiB usable), 2.5-inch SATA HDD | Confirmed |
+| HDD class | Travelstar 5K320, 5400 rpm, SATA 3 Gb/s, non-Advanced-Format | Model-backed |
+| Current OS | Windows 10 Home 32-bit | Confirmed |
+| Firmware mode | Legacy-PC generation; current exact BIOS version and boot-mode settings not yet captured | Partially known |
+| Josh OS status | Selected first physical Josh OS target | Confirmed project status |
+| Josh OS physical boot | No successful physical Josh OS boot yet recorded | Not yet tested |
 
-These values are enough to select the machine as a boot-test target. They are **not** enough to flash replacement firmware. Before firmware work depends on a field, re-read it from the physical machine and record the exact identifier/revision here.
+Older notes that described Laptop #10 as 2 GB or 4 GB RAM were provisional/earlier observations. Until a fresh hardware inventory says otherwise, **3 GB is the canonical current value**.
+
+### Original VE908PA configuration evidence
+
+Period Australian retailer listings for **VE908PA** consistently identify a Compaq 610 configuration with:
+
+- Core 2 Duo T5870;
+- 1 GB DDR2 originally;
+- 160 GB HDD originally;
+- 15.6-inch display;
+- DVD-RW;
+- integrated Intel graphics;
+- Windows XP Professional / Vista Business-era licensing;
+- some bundles advertised a 2 MP webcam and RAM upgrade.
+
+This is useful historical context only. Laptop #10 has clearly changed since new because its current recorded storage is a 120 GB Hitachi drive and current RAM is 3 GB.
+
+### Model-family hardware strongly indicated by the installed T5870/X3100 configuration
+
+| Subsystem | Model-family result | Exact-unit status |
+| --- | --- | --- |
+| Northbridge | Intel GME965 for T5870 + integrated graphics configuration | Strongly indicated; verify PCI ID |
+| Southbridge | Intel ICH8M | Strongly indicated; verify PCI ID |
+| System board spare | HP 538409-001 GM/UMA board is the expected board class | Candidate; verify board label/revision |
+| Wired NIC | Marvell integrated 10/100 Ethernet; QuickSpecs driver name 88E8042 | Family-level; verify exact PCI ID |
+| Audio | IDT 92HD75 High Definition Audio family | Family-level; verify codec ID |
+| Wi-Fi | Could be Intel 802.11a/b/g, Broadcom 4312G b/g, or another approved option | Unknown on this exact unit |
+| Bluetooth | Optional factory module | Unknown on this exact unit |
+| Webcam | Optional 2 MP module | Unknown on this exact unit |
+| Display | 15.6-inch 1366×768; LED/CCFL, anti-glare/BrightView variants existed | Resolution/fitted panel still needs direct verification |
+| Optical drive | DVD-ROM or DVD±RW variants existed | Exact fitted drive unknown |
+| Memory slots | 2× DDR2 SODIMM; up to 4 GB on GME965/PM965 models | Model-family fact; exact module layout unknown |
+| Ports | 3× USB 2.0, VGA, RJ-45, audio in/out, SD/MMC, ExpressCard/34; modem optional | Model-family fact; physical condition unverified |
+| Battery | 6-cell 47 Wh standard; 8-cell 63 Wh option existed | Exact installed battery/health unknown |
+| AC adapter | 65 W class supported; VE908PA parts listings also show compatible 90 W adapters | Exact adapter currently paired with Laptop #10 unknown |
+| RTC battery | 3 V lithium RTC battery | Model-family fact; condition unknown |
+
+### CPU details relevant to Josh OS
+
+The installed T5870 is a Merom-generation Core 2 Duo with:
+
+- 2.0 GHz clock;
+- 2 cores / 2 threads;
+- 2 MB L2 cache;
+- 800 MHz FSB;
+- Intel 64 / x86-64;
+- Execute Disable / NX support;
+- Enhanced SpeedStep;
+- no modern AVX/SSE4-era assumptions should be made.
+
+Josh OS must therefore keep its early x86-64 baseline conservative and avoid accidentally compiling mandatory instructions newer than this CPU.
+
+### Storage observations
+
+The current drive model **HTS543212L9A300** is a Hitachi Travelstar 5K320:
+
+- 120 GB decimal capacity / about 111.7 GiB binary capacity;
+- SATA 3 Gb/s interface;
+- 5400 rpm;
+- 512-byte sectors / not Advanced Format;
+- no TRIM.
+
+Previous DadLAN measurements showed this machine's storage as extremely slow, reinforcing the decision not to optimise Josh OS around HDD performance characteristics. For initial Josh OS work, boot from removable media and leave the disk untouched.
+
 
 ## Why this machine
 
@@ -34,6 +107,94 @@ The Compaq 610 is useful as the first target because it is:
 - simple enough to make initial hardware bring-up observable.
 
 Those are development advantages, not claims of current compatibility.
+
+## Exact-unit unknowns still to capture
+
+Before Laptop #10 can move from **Selected** to **Inventoried**, capture these from the physical machine:
+
+### Identity and firmware
+
+- [ ] photograph/read the bottom service tag and confirm product number **VE908PA#ABG**;
+- [ ] serial number recorded privately (do not publish it in the public repo);
+- [ ] current BIOS version, date and ROM family;
+- [ ] current BIOS configuration and boot order;
+- [ ] whether any firmware password is set;
+- [ ] SMBIOS system-board manufacturer/product/version;
+- [ ] exact motherboard silkscreen / PCB revision;
+- [ ] exact EC/super-I/O identity;
+- [ ] exact SPI flash chip marking and board reference designator;
+- [ ] firmware write-protect state.
+
+### CPU, memory and chipset
+
+- [ ] CPUID family/model/stepping;
+- [ ] complete CPUID feature flags from this exact CPU;
+- [ ] northbridge PCI ID;
+- [ ] southbridge PCI ID;
+- [ ] exact RAM module sizes, manufacturers, speeds and SPD data;
+- [ ] confirm whether 3 GB is 2 GB + 1 GB and whether both slots are healthy.
+
+### Display and graphics
+
+- [ ] panel manufacturer/model and EDID;
+- [ ] confirm native 1366×768 mode;
+- [ ] confirm LED vs CCFL and anti-glare vs BrightView;
+- [ ] exact Intel graphics PCI ID;
+- [ ] VBE modes exposed by the vendor BIOS;
+- [ ] framebuffer address/stride/pixel format actually handed to Limine/JoshBootloader.
+
+### Storage
+
+- [ ] HDD serial/firmware revision recorded privately where appropriate;
+- [ ] SMART health, reallocated/pending sectors and power-on hours;
+- [ ] SATA controller PCI ID and controller mode (IDE/AHCI if selectable);
+- [ ] optical-drive exact model and interface;
+- [ ] whether any original recovery partition still exists.
+
+### Networking and radios
+
+- [ ] wired NIC exact PCI ID and MAC recorded privately;
+- [ ] fitted Wi-Fi card make/model/PCI ID;
+- [ ] Wi-Fi antenna count;
+- [ ] Bluetooth present/absent and USB ID;
+- [ ] modem present/absent.
+
+### Input and peripherals
+
+- [ ] keyboard controller/i8042 behaviour;
+- [ ] touchpad make/model/protocol;
+- [ ] webcam present/absent and USB ID;
+- [ ] SD/MMC reader controller ID;
+- [ ] ExpressCard controller ID;
+- [ ] exact USB controller PCI IDs and topology;
+- [ ] speaker/audio codec exact ID;
+- [ ] battery model, design capacity and current health;
+- [ ] charger voltage/wattage actually in use;
+- [ ] RTC battery condition.
+
+### ACPI and power
+
+- [ ] dump ACPI RSDP/RSDT/XSDT and table list;
+- [ ] DSDT/SSDT capture;
+- [ ] FADT shutdown/reboot behaviour;
+- [ ] APIC/MADT contents;
+- [ ] HPET availability;
+- [ ] lid switch, battery and thermal-zone ACPI behaviour;
+- [ ] cold-boot and warm-reboot behaviour.
+
+### Physical Josh OS evidence
+
+- [ ] Ventoy/USB boot-menu behaviour;
+- [ ] Limine native ISO boot result;
+- [ ] exact last successful serial marker;
+- [ ] framebuffer success/failure;
+- [ ] built-in keyboard success/failure;
+- [ ] memory-map sanity;
+- [ ] reboot behaviour;
+- [ ] Stage 0 Linux-backed ISO boot result;
+- [ ] repeated cold-boot results;
+- [ ] repeated warm-reboot results.
+
 
 ## Phase A — non-destructive Josh OS boot testing
 
