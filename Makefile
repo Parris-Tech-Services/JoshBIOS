@@ -24,8 +24,12 @@ $(BUILD):
 $(BUILD)/test_elf64: tests/test_elf64.c boot/elf64.c boot/elf64.h | $(BUILD)
 	$(HOSTCC) -std=c11 -O2 -Wall -Wextra -Werror -Iboot tests/test_elf64.c boot/elf64.c -o $@
 
-host-tests: $(BUILD)/test_elf64
+$(BUILD)/test_elf64_plan: tests/test_elf64_plan.c boot/elf64.c boot/elf64.h boot/elf64_plan.c boot/elf64_plan.h | $(BUILD)
+	$(HOSTCC) -std=c11 -O2 -Wall -Wextra -Werror -Iboot tests/test_elf64_plan.c boot/elf64.c boot/elf64_plan.c -o $@
+
+host-tests: $(BUILD)/test_elf64 $(BUILD)/test_elf64_plan
 	$(BUILD)/test_elf64
+	$(BUILD)/test_elf64_plan
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
