@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build JoshBIOS
+        run: make all
+      - name: Show image layout
+        run: |
+          file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img
+          wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img
+      - name: Upload boot image
+        uses: actions/upload-artifact@v4
+        with:
+          name: joshbios-image
+          path: build/joshbios.img
