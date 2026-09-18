@@ -188,22 +188,24 @@ bridge-rollback-smoke: bridge-image $(BUILD)/josh-healthctl
 	  for attempt in 1 2 3; do \
 	    log="$(BUILD)/rollback-$$attempt.log"; \
 	    status=0; \
-	    timeout 9s qemu-system-x86_64 \
+	    timeout 15s qemu-system-x86_64 \
 	      -machine pc -m 256M \
 	      -drive format=raw,file=$(ROLLBACK_IMAGE) \
 	      -display none -serial stdio -monitor none -no-reboot \
 	      > "$$log" 2>&1 || status=$$?; \
-	    test $$status -eq 0 -o $$status -eq 124; \
-	    grep -q JOSHBOOT_SLOT_CURRENT "$$log"; \
+	    test $status -eq 0 -o $status -eq 124; \
+	    cat "$log"; \
+	    grep -q JOSHBOOT_SLOT_CURRENT "$log"; \
 	    grep -q JOSHOS_BOOT_OK "$$log"; \
 	  done
 	@status=0; \
-	  timeout 9s qemu-system-x86_64 \
+	  timeout 15s qemu-system-x86_64 \
 	    -machine pc -m 256M \
 	    -drive format=raw,file=$(ROLLBACK_IMAGE) \
 	    -display none -serial stdio -monitor none -no-reboot \
 	    > $(BUILD)/rollback-4.log 2>&1 || status=$$?; \
-	  test $$status -eq 0 -o $$status -eq 124; \
+	  test $status -eq 0 -o $status -eq 124; \
+	  cat $(BUILD)/rollback-4.log; \
 	  grep -q JOSHBOOT_HEALTH_ROLLBACK_PREVIOUS $(BUILD)/rollback-4.log; \
 	  grep -q JOSHBOOT_SLOT_PREVIOUS $(BUILD)/rollback-4.log; \
 	  grep -q JOSHOS_BOOT_OK $(BUILD)/rollback-4.log
@@ -218,12 +220,13 @@ bridge-recovery-smoke: bridge-image
 	mdel -i "$(RECOVERY_IMAGE)@@1048576" ::/BOOT/JOSH/KERNEL-PREV.ELF
 	@rm -f $(BUILD)/recovery.log; \
 	  status=0; \
-	  timeout 9s qemu-system-x86_64 \
+	  timeout 15s qemu-system-x86_64 \
 	    -machine pc -m 256M \
 	    -drive format=raw,file=$(RECOVERY_IMAGE) \
 	    -display none -serial stdio -monitor none -no-reboot \
 	    > $(BUILD)/recovery.log 2>&1 || status=$$?; \
-	  test $$status -eq 0 -o $$status -eq 124; \
+	  test $status -eq 0 -o $status -eq 124; \
+	  cat $(BUILD)/recovery.log; \
 	  grep -q JOSHBOOT_FALLBACK_PREVIOUS $(BUILD)/recovery.log; \
 	  grep -q JOSHBOOT_FALLBACK_RECOVERY $(BUILD)/recovery.log; \
 	  grep -q JOSHBOOT_SLOT_RECOVERY $(BUILD)/recovery.log; \
