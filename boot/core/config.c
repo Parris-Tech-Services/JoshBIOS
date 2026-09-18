@@ -114,8 +114,9 @@ static int parse_flags(const char *value, size_t length, uint32_t *flags) {
             return 0;
         }
 
+        if (end == length) break;
         start = end + 1u;
-        if (start == length + 1u) break;
+        if (start >= length) return 0;
     }
     return 1;
 }
