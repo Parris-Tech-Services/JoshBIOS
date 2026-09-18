@@ -19,3 +19,26 @@ Do not flash JoshBIOS to physical hardware until that exact board is supported, 
 - Add boot-device selection and recovery mode.
 - Support one known development board before considering broader hardware.
 - Add signed/reproducible firmware images and rollback documentation.
+
+
+## HP Compaq 610 physical target
+
+The current physical candidate is Laptop #10, HP Compaq 610 SKU `VE908PA#ABG`.
+External evidence points to the Intel UMA Vulcain/VV09 family with HP system
+board spare `538409-001`, candidate board silkscreen
+`VV09-6050A2256501-MB-A04`, Intel GM/GME965 + ICH8M, U23
+`SST25VF080B` (1 MiB, 3.3 V) and SMSC KBC1070. These are **candidate
+identifiers**, not yet observations from Laptop #10.
+
+Current coreboot contains GM965 northbridge support and ICH8M-family southbridge
+support; Lenovo X61 is the reference mainboard using that stack. The Compaq
+board-specific EC, GPIO, SPD routing, clock, display and power sequencing must
+come from the target hardware capture rather than being copied from X61.
+
+Use `firmware/coreboot/compaq610/probe-linux.sh` on the physical laptop. It is
+read-only: it collects DMI/PCI/chipset evidence and performs three independent
+SPI reads. Then run `preflight.py`. Physical motherboard and SPI markings are
+mandatory inputs. `flash-gate.py` additionally requires a proven external
+OEM-ROM restore before any future physical flash backend may be enabled.
+
+No repository target flashes the Compaq 610.

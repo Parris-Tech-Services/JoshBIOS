@@ -1,0 +1,12 @@
+{
+  "proof_version": 1,
+  "programmer_model": "REPLACE-WITH-EXACT-EXTERNAL-PROGRAMMER",
+  "programmer_voltage": "3.3V",
+  "spi_chip": "SST25VF080B",
+  "board_silkscreen": "VV09-6050A2256501-MB-A04",
+  "oem_rom_sha256": "REPLACE-WITH-SHA256-FROM-PREFLIGHT",
+  "external_write_completed": false,
+  "external_readback_sha256_matches": false,
+  "oem_boot_after_restore_verified": false,
+  "proof_notes": "Do not set the booleans true until the OEM ROM was physically restored and the laptop booted from that restore."
+}

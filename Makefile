@@ -2,6 +2,7 @@ CC ?= gcc
 LD ?= ld
 OBJCOPY ?= objcopy
 HOSTCC ?= cc
+PYTHON ?= python3
 UEFI_CC ?= clang
 UEFI_LD ?= lld-link
 BUILD := build
@@ -52,6 +53,7 @@ host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_co
 	$(BUILD)/test_boot_config
 	$(BUILD)/test_boot_health
 	$(BUILD)/test_firmware_update
+	$(PYTHON) tests/test_compaq610_preflight.py
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@

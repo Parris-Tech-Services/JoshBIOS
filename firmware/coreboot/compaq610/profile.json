@@ -1,0 +1,29 @@
+{
+  "profile_version": 1,
+  "status": "candidate-unverified-on-target",
+  "canonical_board_id": "hp-compaq-610-vv09-a04-uma",
+  "system_product": "Compaq 610",
+  "system_sku": "VE908PA#ABG",
+  "baseboard_product": "308A",
+  "bios_family": "68PVU",
+  "board_silkscreen": "VV09-6050A2256501-MB-A04",
+  "hp_system_board_spare": "538409-001",
+  "spi_chip": "SST25VF080B",
+  "spi_size_bytes": 1048576,
+  "ec_kbc": "SMSC KBC1070",
+  "required_pci_ids": [
+    "8086:2a00",
+    "8086:2a02",
+    "8086:2815"
+  ],
+  "coreboot_platform_requirements": [
+    "src/northbridge/intel/gm965/Kconfig",
+    "src/southbridge/intel/i82801hx/Kconfig",
+    "src/mainboard/lenovo/x61/Kconfig"
+  ],
+  "notes": [
+    "This is a candidate profile derived from the known VE908PA#ABG machine identity and external board/schematic evidence.",
+    "The physical Laptop #10 board silkscreen, SPI marking and installed BIOS must be captured before this profile can become verified.",
+    "Do not flash a coreboot image merely because this profile validates software-visible identifiers."
+  ]
+}

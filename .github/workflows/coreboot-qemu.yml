@@ -45,6 +45,9 @@ jobs:
       - name: Build pinned coreboot QEMU firmware
         run: bash firmware/coreboot/build-qemu.sh
 
+      - name: Verify Compaq 610 chipset support exists upstream
+        run: bash firmware/coreboot/compaq610/check-upstream.sh build/coreboot-src
+
       - name: Boot coreboot to JoshBootloader to AshFallen
         run: |
           rm -f build/coreboot-boot.log
