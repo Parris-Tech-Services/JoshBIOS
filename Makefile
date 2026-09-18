@@ -10,6 +10,7 @@ KERNEL_SECTORS := 64
 
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
+HOST_CFLAGS := -std=c11 -O2 -Wall -Wextra -Werror
 UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wchar -mno-red-zone -fno-stack-protector -Wall -Wextra -Werror -O2
 
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
@@ -22,10 +23,14 @@ $(BUILD):
 	mkdir -p $(BUILD)
 
 $(BUILD)/test_elf64: tests/test_elf64.c boot/elf64.c boot/elf64.h | $(BUILD)
-	$(HOSTCC) -std=c11 -O2 -Wall -Wextra -Werror -Iboot tests/test_elf64.c boot/elf64.c -o $@
+	$(HOSTCC) $(HOST_CFLAGS) -Iboot tests/test_elf64.c boot/elf64.c -o $@
 
-host-tests: $(BUILD)/test_elf64
+$(BUILD)/test_boot_storage: tests/test_boot_storage.c boot/core/block.h boot/core/partition.h boot/core/partition.c boot/core/fat32.h boot/core/fat32.c | $(BUILD)
+	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tests/test_boot_storage.c boot/core/partition.c boot/core/fat32.c -o $@
+
+host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage
 	$(BUILD)/test_elf64
+	$(BUILD)/test_boot_storage
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
