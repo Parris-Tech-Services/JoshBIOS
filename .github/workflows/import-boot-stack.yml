@@ -4,7 +4,7 @@ on:
   push:
     branches: ['verify/claude-boot-stack']
     paths:
-      - '.ci/import/josh-boot-stack.zip'
+      - '.ci/import/chunk-*'
       - '.github/workflows/import-boot-stack.yml'
   workflow_dispatch:
 
@@ -19,12 +19,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: verify/claude-boot-stack
+          fetch-depth: 0
 
-      - name: Extract source bundle
+      - name: Reconstruct and extract source bundle
         run: |
-          rm -rf /tmp/josh-boot-stack
+          rm -rf /tmp/josh-boot-stack /tmp/josh-boot-stack.zip
           mkdir -p /tmp/josh-boot-stack
-          unzip -q .ci/import/josh-boot-stack.zip -d /tmp/josh-boot-stack
+          cat .ci/import/chunk-* | base64 -d > /tmp/josh-boot-stack.zip
+          unzip -t /tmp/josh-boot-stack.zip
+          unzip -q /tmp/josh-boot-stack.zip -d /tmp/josh-boot-stack
           cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/fat32.c boot/fat32.c
           cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/fat32.h boot/fat32.h
           cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/elf64.c boot/elf64.c
