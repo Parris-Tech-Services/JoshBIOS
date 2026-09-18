@@ -1,6 +1,8 @@
 # JoshBIOS architecture
 
-## Current boot path
+## Current boot paths
+
+The tiny local 32-bit payload remains an unpartitioned regression image, but the verified canonical-kernel path is:
 
 ```text
 Power on
@@ -11,30 +13,35 @@ Platform BIOS / QEMU SeaBIOS
   v
 JoshBIOS Stage 1 (boot sector @ 0x7C00)
   |
-  | loads 16 sectors
+  | BIOS EDD loads Stage 2
   v
-JoshBIOS Stage 2 (@ 0x8000)
+JoshBootloader Stage 2 (@ 0x8000)
   |
-  | BIOS extended disk read
-  | enables A20
-  | installs GDT
-  | enters 32-bit protected mode
+  | MBR partition discovery
+  | FAT32 mount
+  | open /BOOT/JOSH/KERNEL.ELF
+  | ELF64 validate/load
+  | E820 + VBE discovery
+  | ACPI RSDP / SMBIOS scan
+  | construct Josh Boot Protocol
+  | build bootstrap page tables
+  | enter x86-64 long mode
   v
-JoshBIOS kernel (@ 0x10000)
+canonical AshFallen kernel
   |
   v
-Direct VGA text output + halt loop
+JOSHOS_BOOT_OK
 ```
 
-The current implementation intentionally targets a simple, observable boot chain before adding x86_64 long mode, interrupts, paging, filesystems and drivers.
+GitHub Actions verifies this legacy-BIOS path in QEMU. GPT parsing exists and is host-tested but the integration image currently uses MBR. The UEFI path is still only a boot-tested entry scaffold and does not yet load the canonical kernel.
 
 ## Why the motherboard firmware is not replaced yet
 
 There is no one generic BIOS binary that can safely initialise every PC motherboard. The firmware that runs immediately after reset must understand that board's chipset, memory topology and devices. JoshBIOS will approach this through coreboot on supported hardware rather than claiming a universal flashable ROM.
 
-## ABI direction
+## Boot ABI
 
-A future `JoshBootInfo` structure will carry at least:
+The experimental versioned `JoshBootInfo` structure now carries:
 
 - memory map
 - framebuffer details
