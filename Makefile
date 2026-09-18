@@ -115,11 +115,21 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 	mformat -i "$(BRIDGE_IMAGE)@@1048576" -F -v JOSHBOOT ::
 	mmd -i "$(BRIDGE_IMAGE)@@1048576" ::/BOOT
 	mmd -i "$(BRIDGE_IMAGE)@@1048576" ::/BOOT/JOSH
+	printf '%s\n' \
+		'version=1' \
+		'default=josh' \
+		'timeout=3' \
+		'entry=josh' \
+		'name=Josh OS' \
+		'kernel=/boot/josh/kernel.elf' \
+		'cmdline=josh.boot=normal' \
+		'flags=development' > $(BUILD)/BOOT.CFG
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" $(BUILD)/BOOT.CFG ::/BOOT/JOSH/BOOT.CFG
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
 	@echo "JoshBootloader FAT32 + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
 
 bridge-smoke: bridge-image
-	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_CPU_LONG_MODE_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_PARTITION_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_FAT32_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_PATH_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_FILE_LOADED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_RSDP_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_SMBIOS_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader FAT32 -> AshFallen QEMU bridge smoke test passed."
+	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_CPU_LONG_MODE_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_PARTITION_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_FAT32_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_CONFIG_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_PATH_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_FILE_LOADED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_RSDP_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_SMBIOS_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader FAT32 -> AshFallen QEMU bridge smoke test passed."
 
 $(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
