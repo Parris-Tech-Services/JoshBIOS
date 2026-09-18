@@ -2,6 +2,7 @@
 #include "../elf64.h"
 #include "../protocol.h"
 #include "../core/config.h"
+#include "../core/health.h"
 
 #define COM1_BASE 0x3f8u
 #define KERNEL_VIRT_FLOOR UINT64_C(0xffffffff80000000)
@@ -23,6 +24,8 @@ EFI_GUID gEfiAcpi20TableGuid={0x8868e871u,0xe4f1u,0x11d3u,{0xbc,0x22,0x00,0x80,0
 EFI_GUID gEfiAcpi10TableGuid={0xeb9d2d30u,0x2d88u,0x11d3u,{0x9a,0x16,0x00,0x90,0x27,0x3f,0xc1,0x4d}};
 EFI_GUID gEfiSmbios3TableGuid={0xf2fd1544u,0x9794u,0x4a2cu,{0x99,0x2e,0xe5,0xbb,0xcf,0x20,0xe3,0x94}};
 EFI_GUID gEfiSmbiosTableGuid={0xeb9d2d31u,0x2d88u,0x11d3u,{0x9a,0x16,0x00,0x90,0x27,0x3f,0xc1,0x4d}};
+static EFI_GUID gJoshBootHealthGuid={0x8f8846d1u,0xa182u,0x4a91u,{0x9c,0x44,0x4a,0x4f,0x53,0x48,0x42,0x48}};
+static CHAR16 gJoshBootHealthName[]={'J','o','s','h','B','o','o','t','H','e','a','l','t','h',0};
 
 typedef struct {
     JoshBootInfo info;
@@ -70,6 +73,57 @@ static EFI_STATUS read_file(EFI_BOOT_SERVICES*bs,EFI_FILE_PROTOCOL*root,CHAR16*p
     *size=(UINTN)fs;s=f->Read(f,size,*buf);f->Close(f);if(EFI_ERROR(s)||*size!=(UINTN)fs){bs->FreePool(*buf);return EFI_DEVICE_ERROR;}return EFI_SUCCESS;
 }
 
+static int uefi_health_store(
+    EFI_SYSTEM_TABLE *st,
+    const josh_boot_health_record_t *health
+) {
+    if (!st || !st->RuntimeServices || !st->RuntimeServices->SetVariable || !health) return 0;
+    EFI_STATUS s=st->RuntimeServices->SetVariable(
+        gJoshBootHealthName,
+        &gJoshBootHealthGuid,
+        EFI_VARIABLE_NON_VOLATILE |
+        EFI_VARIABLE_BOOTSERVICE_ACCESS |
+        EFI_VARIABLE_RUNTIME_ACCESS,
+        sizeof(*health),
+        (VOID *)health);
+    if(EFI_ERROR(s)){serial_write("JOSHUEFI_WARN_HEALTH_PERSIST\r\n");return 0;}
+    serial_write("JOSHUEFI_HEALTH_PERSISTED\r\n");
+    return 1;
+}
+
+static void uefi_health_load(
+    EFI_SYSTEM_TABLE *st,
+    josh_boot_health_record_t *health
+) {
+    UINTN size=sizeof(*health);uint32_t attrs=0;EFI_STATUS s=EFI_NOT_FOUND;
+    if(st&&st->RuntimeServices&&st->RuntimeServices->GetVariable){
+        s=st->RuntimeServices->GetVariable(
+            gJoshBootHealthName,&gJoshBootHealthGuid,&attrs,&size,health);
+    }
+    if(EFI_ERROR(s)||size!=sizeof(*health)||!josh_boot_health_valid(health)){
+        josh_boot_health_default(health);
+        (void)uefi_health_store(st,health);
+        serial_write("JOSHUEFI_HEALTH_INITIALIZED\r\n");
+    }else{
+        serial_write("JOSHUEFI_HEALTH_LOADED\r\n");
+    }
+}
+
+static const char *uefi_kernel_path(
+    const josh_boot_config_t *cfg,
+    josh_boot_slot_t slot
+) {
+    if(slot==JOSH_BOOT_SLOT_CURRENT)return cfg->kernel_path;
+    if(slot==JOSH_BOOT_SLOT_PREVIOUS)return cfg->previous_kernel_path;
+    return cfg->recovery_kernel_path;
+}
+
+static void uefi_slot_marker(josh_boot_slot_t slot){
+    if(slot==JOSH_BOOT_SLOT_CURRENT)serial_write("JOSHUEFI_SLOT_CURRENT\r\n");
+    else if(slot==JOSH_BOOT_SLOT_PREVIOUS)serial_write("JOSHUEFI_SLOT_PREVIOUS\r\n");
+    else serial_write("JOSHUEFI_SLOT_RECOVERY\r\n");
+}
+
 static EFI_STATUS load_files(EFI_HANDLE image,EFI_SYSTEM_TABLE*st,josh_boot_config_t*cfg,VOID**kernel,UINTN*kernel_size,EFI_LOADED_IMAGE_PROTOCOL**loaded){
     EFI_FILE_PROTOCOL*root=0;EFI_STATUS s=open_root(image,st,&root,loaded);if(EFI_ERROR(s))return s;
     CHAR16 cfg_path[]={'\\','E','F','I','\\','J','O','S','H','\\','B','O','O','T','.','C','F','G',0};
@@ -77,8 +131,60 @@ static EFI_STATUS load_files(EFI_HANDLE image,EFI_SYSTEM_TABLE*st,josh_boot_conf
     if(EFI_ERROR(s)){root->Close(root);return s;}
     if(cfg_size>JOSH_BOOT_CONFIG_MAX_BYTES||josh_boot_config_parse(cfg_buf,(size_t)cfg_size,cfg)!=JOSH_CONFIG_OK){st->BootServices->FreePool(cfg_buf);root->Close(root);return EFI_LOAD_ERROR;}
     st->BootServices->FreePool(cfg_buf);serial_write("JOSHUEFI_CONFIG_OK\r\n");
-    CHAR16 path[JOSH_BOOT_CONFIG_PATH_MAX+1u];if(!ascii_path_to_uefi(cfg->kernel_path,path,sizeof(path)/sizeof(path[0]))){root->Close(root);return EFI_LOAD_ERROR;}
-    s=read_file(st->BootServices,root,path,kernel,kernel_size);root->Close(root);if(!EFI_ERROR(s))serial_write("JOSHUEFI_KERNEL_FILE_LOADED\r\n");return s;
+
+    josh_boot_health_record_t health;
+    uefi_health_load(st,&health);
+    uint32_t old_slot=health.selected_slot;
+    uint64_t old_generation=health.generation;
+    int was_pending=health.pending_good!=0u;
+    josh_boot_slot_t slot=josh_boot_health_prepare_attempt(&health,JOSH_BOOT_HEALTH_MAX_ATTEMPTS);
+    if(health.generation!=old_generation)(void)uefi_health_store(st,&health);
+    if(was_pending&&old_slot!=(uint32_t)slot){
+        if(slot==JOSH_BOOT_SLOT_PREVIOUS)serial_write("JOSHUEFI_HEALTH_ROLLBACK_PREVIOUS\r\n");
+        else serial_write("JOSHUEFI_HEALTH_ROLLBACK_RECOVERY\r\n");
+    }
+
+    for(unsigned candidate=0;candidate<3u;candidate++){
+        const char*ascii=uefi_kernel_path(cfg,slot);
+        uefi_slot_marker(slot);
+        if(ascii&&ascii[0]){
+            CHAR16 path[JOSH_BOOT_CONFIG_PATH_MAX+1u];
+            if(ascii_path_to_uefi(ascii,path,sizeof(path)/sizeof(path[0]))){
+                VOID*candidate_image=0;UINTN candidate_size=0;
+                s=read_file(st->BootServices,root,path,&candidate_image,&candidate_size);
+                if(!EFI_ERROR(s)){
+                    JoshElf64Summary check;
+                    if(josh_elf64_validate(candidate_image,candidate_size,&check)==JOSH_ELF64_OK){
+                        *kernel=candidate_image;*kernel_size=candidate_size;
+                        root->Close(root);
+                        serial_write("JOSHUEFI_KERNEL_FILE_LOADED\r\n");
+                        return EFI_SUCCESS;
+                    }
+                    st->BootServices->FreePool(candidate_image);
+                }
+            }
+        }
+
+        if(slot==JOSH_BOOT_SLOT_CURRENT&&cfg->previous_kernel_path[0]){
+            if(!josh_boot_health_select_fallback(&health,JOSH_BOOT_SLOT_PREVIOUS,JOSH_BOOT_FAILURE_KERNEL_FILE))break;
+            (void)uefi_health_store(st,&health);
+            serial_write("JOSHUEFI_FALLBACK_PREVIOUS\r\n");
+            slot=JOSH_BOOT_SLOT_PREVIOUS;
+            continue;
+        }
+        if(slot!=JOSH_BOOT_SLOT_RECOVERY&&cfg->recovery_kernel_path[0]){
+            if(!josh_boot_health_select_fallback(&health,JOSH_BOOT_SLOT_RECOVERY,JOSH_BOOT_FAILURE_KERNEL_FILE))break;
+            (void)uefi_health_store(st,&health);
+            serial_write("JOSHUEFI_FALLBACK_RECOVERY\r\n");
+            slot=JOSH_BOOT_SLOT_RECOVERY;
+            continue;
+        }
+        break;
+    }
+
+    root->Close(root);
+    serial_write("JOSHUEFI_ERROR_KERNEL_CANDIDATES\r\n");
+    return EFI_NOT_FOUND;
 }
 
 static EFI_STATUS load_elf(EFI_BOOT_SERVICES*bs,const VOID*image,UINTN bytes,JoshElf64Summary*sum,EFI_PHYSICAL_ADDRESS*phys){

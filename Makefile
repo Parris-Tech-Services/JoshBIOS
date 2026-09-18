@@ -226,7 +226,7 @@ bridge-recovery-smoke: bridge-image
 	  grep -q JOSHOS_BOOT_OK $(BUILD)/recovery.log; \
 	  echo "JoshBootloader recovery-kernel fallback smoke test passed."
 
-$(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h boot/elf64.h boot/protocol.h boot/core/config.h | $(BUILD)
+$(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h boot/elf64.h boot/protocol.h boot/core/config.h boot/core/health.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
 
 $(BUILD)/uefi_handoff.obj: boot/uefi/handoff.S | $(BUILD)
@@ -238,7 +238,10 @@ $(BUILD)/uefi_elf64.obj: boot/elf64.c boot/elf64.h | $(BUILD)
 $(BUILD)/uefi_config.obj: boot/core/config.c boot/core/config.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
 
-$(BUILD)/BOOTX64.EFI: $(BUILD)/uefi_main.obj $(BUILD)/uefi_handoff.obj $(BUILD)/uefi_elf64.obj $(BUILD)/uefi_config.obj
+$(BUILD)/uefi_health.obj: boot/core/health.c boot/core/health.h | $(BUILD)
+	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
+
+$(BUILD)/BOOTX64.EFI: $(BUILD)/uefi_main.obj $(BUILD)/uefi_handoff.obj $(BUILD)/uefi_elf64.obj $(BUILD)/uefi_config.obj $(BUILD)/uefi_health.obj
 	$(UEFI_LD) /subsystem:efi_application /entry:efi_main /nodefaultlib /out:$@ $^
 
 uefi: $(BUILD)/BOOTX64.EFI
@@ -260,10 +263,14 @@ $(BUILD)/joshuefi.img: $(BUILD)/BOOTX64.EFI
 		'entry=josh' \
 		'name=Josh OS' \
 		'kernel=/EFI/JOSH/KERNEL.ELF' \
+		'previous_kernel=/EFI/JOSH/KERNEL-PREV.ELF' \
+		'recovery_kernel=/EFI/JOSH/RECOVERY.ELF' \
 		'cmdline=josh.boot=uefi' \
 		'flags=development' > $(BUILD)/UEFI-BOOT.CFG
 	mcopy -i $@ $(BUILD)/UEFI-BOOT.CFG ::/EFI/JOSH/BOOT.CFG
 	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/KERNEL.ELF
+	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/KERNEL-PREV.ELF
+	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/RECOVERY.ELF
 
 uefi-image: $(BUILD)/joshuefi.img
 	@echo "JoshUEFI removable-media image OK: $(BUILD)/joshuefi.img"
@@ -284,6 +291,7 @@ uefi-smoke: uefi-image
 	  test $$status -eq 0 -o $$status -eq 124; \
 	  grep -q JOSHUEFI_ENTRY_OK $(BUILD)/uefi.log; \
 	  grep -q JOSHUEFI_CONFIG_OK $(BUILD)/uefi.log; \
+	  grep -q JOSHUEFI_SLOT_CURRENT $(BUILD)/uefi.log; \
 	  grep -q JOSHUEFI_KERNEL_FILE_LOADED $(BUILD)/uefi.log; \
 	  grep -q JOSHUEFI_ELF64_LOADED $(BUILD)/uefi.log; \
 	  grep -q JOSHUEFI_GOP_OK $(BUILD)/uefi.log; \

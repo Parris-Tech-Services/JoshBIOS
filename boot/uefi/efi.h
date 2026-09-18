@@ -19,6 +19,9 @@ typedef struct { uint64_t Signature; uint32_t Revision,HeaderSize,CRC32,Reserved
 #define EFI_NOT_FOUND EFIERR(14)
 #define EFI_ERROR(s) (((s)&EFI_ERROR_BIT)!=0)
 #define EFI_FILE_MODE_READ UINT64_C(1)
+#define EFI_VARIABLE_NON_VOLATILE 0x00000001u
+#define EFI_VARIABLE_BOOTSERVICE_ACCESS 0x00000002u
+#define EFI_VARIABLE_RUNTIME_ACCESS 0x00000004u
 #define EFI_PAGE_SIZE 4096u
 typedef enum { AllocateAnyPages,AllocateMaxAddress,AllocateAddress,MaxAllocateType } EFI_ALLOCATE_TYPE;
 typedef enum { EfiReservedMemoryType,EfiLoaderCode,EfiLoaderData,EfiBootServicesCode,EfiBootServicesData,EfiRuntimeServicesCode,EfiRuntimeServicesData,EfiConventionalMemory,EfiUnusableMemory,EfiACPIReclaimMemory,EfiACPIMemoryNVS,EfiMemoryMappedIO,EfiMemoryMappedIOPortSpace,EfiPalCode,EfiPersistentMemory,EfiUnacceptedMemoryType,EfiMaxMemoryType } EFI_MEMORY_TYPE;
@@ -31,9 +34,19 @@ typedef EFI_STATUS(*EFI_FREE_POOL)(VOID*);
 typedef EFI_STATUS(*EFI_HANDLE_PROTOCOL)(EFI_HANDLE,EFI_GUID*,VOID**);
 typedef EFI_STATUS(*EFI_LOCATE_PROTOCOL)(EFI_GUID*,VOID*,VOID**);
 typedef EFI_STATUS(*EFI_EXIT_BOOT_SERVICES)(EFI_HANDLE,UINTN);
+typedef EFI_STATUS(*EFI_GET_VARIABLE)(CHAR16*,EFI_GUID*,uint32_t*,UINTN*,VOID*);
+typedef EFI_STATUS(*EFI_SET_VARIABLE)(CHAR16*,EFI_GUID*,uint32_t,UINTN,VOID*);
 typedef struct { EFI_TABLE_HEADER Hdr; VOID *RaiseTPL,*RestoreTPL; EFI_ALLOCATE_PAGES AllocatePages; EFI_FREE_PAGES FreePages; EFI_GET_MEMORY_MAP GetMemoryMap; EFI_ALLOCATE_POOL AllocatePool; EFI_FREE_POOL FreePool; VOID *CreateEvent,*SetTimer,*WaitForEvent,*SignalEvent,*CloseEvent,*CheckEvent,*InstallProtocolInterface,*ReinstallProtocolInterface,*UninstallProtocolInterface; EFI_HANDLE_PROTOCOL HandleProtocol; VOID *Reserved,*RegisterProtocolNotify,*LocateHandle,*LocateDevicePath,*InstallConfigurationTable,*LoadImage,*StartImage,*Exit,*UnloadImage; EFI_EXIT_BOOT_SERVICES ExitBootServices; VOID *GetNextMonotonicCount,*Stall,*SetWatchdogTimer,*ConnectController,*DisconnectController,*OpenProtocol,*CloseProtocol,*OpenProtocolInformation,*ProtocolsPerHandle,*LocateHandleBuffer; EFI_LOCATE_PROTOCOL LocateProtocol; VOID *InstallMultipleProtocolInterfaces,*UninstallMultipleProtocolInterfaces,*CalculateCrc32,*CopyMem,*SetMem,*CreateEventEx; } EFI_BOOT_SERVICES;
+typedef struct {
+    EFI_TABLE_HEADER Hdr;
+    VOID *GetTime,*SetTime,*GetWakeupTime,*SetWakeupTime,*SetVirtualAddressMap,*ConvertPointer;
+    EFI_GET_VARIABLE GetVariable;
+    VOID *GetNextVariableName;
+    EFI_SET_VARIABLE SetVariable;
+    VOID *GetNextHighMonotonicCount,*ResetSystem,*UpdateCapsule,*QueryCapsuleCapabilities,*QueryVariableInfo;
+} EFI_RUNTIME_SERVICES;
 typedef struct { EFI_GUID VendorGuid; VOID *VendorTable; } EFI_CONFIGURATION_TABLE;
-typedef struct EFI_SYSTEM_TABLE { EFI_TABLE_HEADER Hdr; CHAR16 *FirmwareVendor; uint32_t FirmwareRevision; EFI_HANDLE ConsoleInHandle; VOID *ConIn; EFI_HANDLE ConsoleOutHandle; VOID *ConOut; EFI_HANDLE StandardErrorHandle; VOID *StdErr,*RuntimeServices; EFI_BOOT_SERVICES *BootServices; UINTN NumberOfTableEntries; EFI_CONFIGURATION_TABLE *ConfigurationTable; } EFI_SYSTEM_TABLE;
+typedef struct EFI_SYSTEM_TABLE { EFI_TABLE_HEADER Hdr; CHAR16 *FirmwareVendor; uint32_t FirmwareRevision; EFI_HANDLE ConsoleInHandle; VOID *ConIn; EFI_HANDLE ConsoleOutHandle; VOID *ConOut; EFI_HANDLE StandardErrorHandle; VOID *StdErr; EFI_RUNTIME_SERVICES *RuntimeServices; EFI_BOOT_SERVICES *BootServices; UINTN NumberOfTableEntries; EFI_CONFIGURATION_TABLE *ConfigurationTable; } EFI_SYSTEM_TABLE;
 typedef struct { uint32_t Revision; EFI_HANDLE ParentHandle; EFI_SYSTEM_TABLE *SystemTable; EFI_HANDLE DeviceHandle; VOID *FilePath,*Reserved; uint32_t LoadOptionsSize; VOID *LoadOptions,*ImageBase; uint64_t ImageSize; EFI_MEMORY_TYPE ImageCodeType,ImageDataType; EFI_STATUS(*Unload)(EFI_HANDLE); } EFI_LOADED_IMAGE_PROTOCOL;
 typedef struct EFI_FILE_PROTOCOL EFI_FILE_PROTOCOL;
 typedef EFI_STATUS(*EFI_FILE_OPEN)(EFI_FILE_PROTOCOL*,EFI_FILE_PROTOCOL**,CHAR16*,uint64_t,uint64_t);
