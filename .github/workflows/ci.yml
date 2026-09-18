@@ -14,31 +14,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install QEMU
+      - name: Install build and VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86
+          sudo apt-get install -y qemu-system-x86 clang lld mtools ovmf
 
-      - name: Build JoshBIOS
+      - name: Build legacy BIOS path
         run: make all
 
-      - name: Boot smoke test
+      - name: Build UEFI scaffold
+        run: make uefi-image
+
+      - name: Legacy BIOS boot smoke test
         run: make smoke
+
+      - name: UEFI OVMF boot smoke test
+        run: make uefi-smoke
 
       - name: Show image layout
         run: |
-          file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img
-          wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img
+          file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img build/BOOTX64.EFI build/joshuefi.img
+          wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img build/BOOTX64.EFI build/joshuefi.img
           cat build/boot.log
+          cat build/uefi.log
 
-      - name: Record checksum
-        run: sha256sum build/joshbios.img | tee build/joshbios.img.sha256
+      - name: Record checksums
+        run: |
+          sha256sum build/joshbios.img | tee build/joshbios.img.sha256
+          sha256sum build/BOOTX64.EFI | tee build/BOOTX64.EFI.sha256
+          sha256sum build/joshuefi.img | tee build/joshuefi.img.sha256
 
-      - name: Upload boot image
+      - name: Upload BIOS boot image
         uses: actions/upload-artifact@v4
         with:
           name: joshbios-image
           path: |
             build/joshbios.img
             build/joshbios.img.sha256
+          if-no-files-found: error
+
+      - name: Upload UEFI scaffold
+        uses: actions/upload-artifact@v4
+        with:
+          name: joshuefi-scaffold
+          path: |
+            build/BOOTX64.EFI
+            build/BOOTX64.EFI.sha256
+            build/joshuefi.img
+            build/joshuefi.img.sha256
           if-no-files-found: error
