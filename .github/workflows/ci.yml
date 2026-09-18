@@ -25,7 +25,7 @@ jobs:
       - name: Install build and VM dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 clang lld mtools ovmf curl git
+          sudo apt-get install -y qemu-system-x86 clang lld mtools ovmf curl git gcc-multilib
 
       - name: Host parser and storage tests
         run: make host-tests
