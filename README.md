@@ -49,6 +49,16 @@ canonical Josh OS x86-64 kernel
 
 The convergence point should be a **versioned boot ABI** rather than copying kernels between repositories. JoshBootloader will need ELF64/x86-64 loading plus a hand-off containing the memory map, framebuffer, firmware data and other boot information expected by the canonical Josh OS kernel.
 
+## Detailed roadmaps
+
+- [Overall roadmap](ROADMAP.md)
+- [JoshFirmware / JoshBIOS roadmap](docs/FIRMWARE_ROADMAP.md)
+- [JoshBootloader roadmap](docs/BOOTLOADER_ROADMAP.md)
+- [Josh Boot Protocol implementation plan](docs/JOSH_BOOT_PROTOCOL.md)
+- [Architecture](docs/ARCHITECTURE.md)
+
+The canonical kernel-side boot contract and whole-stack roadmap live in AshFallen.
+
 ## What works now
 
 ```text
@@ -104,4 +114,4 @@ Do **not** flash experimental firmware to a physical motherboard. The current bo
 
 ## Next milestone
 
-Move the kernel to x86_64 long mode, add exceptions/interrupts, keyboard input, serial debugging and a versioned firmware/bootloader-to-kernel hand-off structure.
+Keep the local kernel as a tiny regression payload and make **JoshBootloader boot the real AshFallen x86-64 kernel**: add filesystem-backed loading, ELF64 parsing, long-mode hand-off, serial diagnostics and the versioned Josh Boot Protocol. Limine remains the reference boot path until JoshBootloader reaches equivalent reliability.
