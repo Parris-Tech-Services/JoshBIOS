@@ -82,14 +82,14 @@ Exact paths are not frozen yet.
 
 Must correctly:
 
-- [ ] validate ELF magic/class/endianness/machine;
-- [ ] inspect program headers;
-- [ ] reject overlapping/invalid ranges;
-- [ ] load PT_LOAD segments;
-- [ ] zero BSS;
-- [ ] honour alignment;
-- [ ] track loaded physical/virtual ranges;
-- [ ] expose entry point;
+- [x] validate ELF magic/class/endianness/machine;
+- [x] inspect program headers;
+- [x] reject overlapping/invalid ranges;
+- [x] load PT_LOAD segments;
+- [x] zero BSS;
+- [x] honour alignment;
+- [x] track loaded physical/virtual ranges;
+- [x] expose entry point;
 - [ ] reject unsupported relocation models explicitly.
 
 Add host-side parser tests and malformed-image fixtures.
@@ -99,11 +99,11 @@ Add host-side parser tests and malformed-image fixtures.
 # B3 — x86-64 hand-off
 
 - [ ] verify long-mode CPU support;
-- [ ] build required page tables;
-- [ ] enable PAE/long mode/paging in correct sequence;
-- [ ] install temporary GDT;
-- [ ] establish known stack;
-- [ ] establish known register contract;
+- [x] build required page tables;
+- [x] enable PAE/long mode/paging in correct sequence;
+- [x] install temporary GDT;
+- [x] establish known stack;
+- [x] establish known register contract;
 - [ ] jump to canonical kernel entry.
 
 Document exact machine state at hand-off.
