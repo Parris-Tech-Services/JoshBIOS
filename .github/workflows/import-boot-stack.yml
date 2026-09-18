@@ -1,0 +1,68 @@
+name: Import verified boot-stack bundle
+
+on:
+  push:
+    branches: ['verify/claude-boot-stack']
+    paths:
+      - '.ci/import/josh-boot-stack.zip'
+      - '.github/workflows/import-boot-stack.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-test-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: verify/claude-boot-stack
+
+      - name: Extract source bundle
+        run: |
+          rm -rf /tmp/josh-boot-stack
+          mkdir -p /tmp/josh-boot-stack
+          unzip -q .ci/import/josh-boot-stack.zip -d /tmp/josh-boot-stack
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/fat32.c boot/fat32.c
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/fat32.h boot/fat32.h
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/elf64.c boot/elf64.c
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/elf64.h boot/elf64.h
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/ata.c boot/ata.c
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/ata.h boot/ata.h
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/boot/longmode.S boot/longmode.S
+          mkdir -p tests/fixtures .github/workflows
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/tests/test_fat32.c tests/test_fat32.c
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/tests/test_elf64.c tests/test_elf64.c
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/tests/make-test-image.sh tests/make-test-image.sh
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/tests/fixtures/testkernel.c tests/fixtures/testkernel.c
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/tests/fixtures/testkernel.ld tests/fixtures/testkernel.ld
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/Makefile.tests Makefile.tests
+          cp -a /tmp/josh-boot-stack/josh-boot-stack/.github/workflows/ci-tests.yml .github/workflows/ci-tests.yml
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential dosfstools mtools python3 qemu-system-x86 clang lld ovmf
+
+      - name: Run host parser tests
+        run: make -f Makefile.tests test
+
+      - name: Compile-check unexecuted low-level components
+        run: make -f Makefile.tests buildcheck
+
+      - name: Preserve legacy BIOS boot proof
+        run: make smoke
+
+      - name: Preserve UEFI entry proof
+        run: make uefi-smoke
+
+      - name: Commit extracted source to verification branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add boot/fat32.c boot/fat32.h boot/elf64.c boot/elf64.h boot/ata.c boot/ata.h boot/longmode.S
+          git add tests Makefile.tests .github/workflows/ci-tests.yml
+          git commit -m "boot: add tested FAT32 and ELF64 loader components"
+          git push origin HEAD:verify/claude-boot-stack
