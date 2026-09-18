@@ -67,8 +67,12 @@ check: image
 $(BUILD)/test_boot_storage: boot/core/partition.c boot/core/partition.h boot/core/fat32.c boot/core/fat32.h boot/core/block.h tests/test_boot_storage.c | $(BUILD)
 	$(HOST_CC) $(HOST_CFLAGS) boot/core/partition.c boot/core/fat32.c tests/test_boot_storage.c -o $@
 
-test: $(BUILD)/test_boot_storage
+$(BUILD)/test_elf64: boot/core/elf64.c boot/core/elf64.h tests/test_elf64.c | $(BUILD)
+	$(HOST_CC) $(HOST_CFLAGS) boot/core/elf64.c tests/test_elf64.c -o $@
+
+test: $(BUILD)/test_boot_storage $(BUILD)/test_elf64
 	$(BUILD)/test_boot_storage
+	$(BUILD)/test_elf64
 
 run: all
 	qemu-system-i386 -drive format=raw,file=$(BUILD)/joshbios.img
