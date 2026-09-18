@@ -40,10 +40,12 @@ Preserve the tiny payload as a regression target, but focus new boot engineering
 - [x] Josh Boot Protocol v0 builder;
 - [x] memory-map hand-off;
 - [x] framebuffer hand-off;
-- [ ] explicitly assert ACPI/SMBIOS hand-off in integration CI;
+- [x] explicitly assert ACPI/SMBIOS hand-off in integration CI;
 - [x] load the canonical `AshFallen/kernel`;
 - [x] reach the canonical kernel boot-success marker in QEMU;
 - [x] keep Limine working as the reference path.
+
+GitHub Actions run `35345509864` additionally proves that the legacy-BIOS bridge reports `JOSHBOOT_CPU_LONG_MODE_OK`, delivers non-zero ACPI RSDP and SMBIOS pointers to AshFallen (`JOSHOS_RSDP_OK` / `JOSHOS_SMBIOS_OK`), and still reaches `JOSHOS_BOOT_OK`.
 
 ## v0.3 — Real boot manager
 
