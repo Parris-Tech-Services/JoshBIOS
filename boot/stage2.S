@@ -3,7 +3,10 @@
 .global _start
 .global enter_long_mode
 .global e820_count
+.global vbe_ready
 .global boot_drive
+.global bios_disk_sectors
+.global gdt_descriptor
 .extern stage2_pm_main
 .extern stage2_kernel_entry
 
@@ -35,22 +38,20 @@ boot_kernel:
 
     call check_edd
     jc edd_error
+
+    # EDD AH=48 gives the block layer an honest device bound. Failure leaves
+    # the FAT32 path disabled; the already-verified raw bootstrap stays usable.
+    call query_drive_parameters
+
+    # Preserve the verified raw-extent bootstrap as a recovery/development
+    # fallback while the normal path moves to partition + FAT32 loading.
     call load_kernel_extent
-    jc disk_error
 
-    # The existing 32-bit test kernel remains a fallback. Only the ELF64 path
-    # needs platform discovery and the long-mode hand-off.
-    movw $0x1000, %ax
-    movw %ax, %es
-    cmpl $0x464c457f, %es:0
-    jne enter_protected_mode
-
-    xorw %ax, %ax
-    movw %ax, %es
+    # Platform discovery is attempted before protected mode regardless of what
+    # is currently in the raw staging area. A filesystem-loaded ELF needs the
+    # same E820/VBE hand-off as the raw bootstrap path.
     call collect_e820
-    jc e820_error
     call setup_vbe
-    jc vbe_error
 
 enter_protected_mode:
     inb $0x92, %al
@@ -64,6 +65,24 @@ enter_protected_mode:
     orl $0x1, %eax
     movl %eax, %cr0
     ljmpl $0x08, $protected_mode
+
+query_drive_parameters:
+    movw $0, bios_disk_sectors
+    movw $0, bios_disk_sectors + 2
+    movw $0, bios_disk_sectors + 4
+    movw $0, bios_disk_sectors + 6
+    movw $0x001e, drive_params
+    movw $drive_params, %si
+    movb boot_drive, %dl
+    movb $0x48, %ah
+    int $0x13
+    jc 1f
+    movl drive_params + 16, %eax
+    movl %eax, bios_disk_sectors
+    movl drive_params + 20, %eax
+    movl %eax, bios_disk_sectors + 4
+1:
+    ret
 
 load_kernel_extent:
     movw $KERNEL_SEGMENT_START, kernel_segment
@@ -122,6 +141,7 @@ collect_e820:
     cmpw $0, e820_count
     jne 2b
 4:
+    movw $0, e820_count
     popw %di
     popw %es
     stc
@@ -156,6 +176,7 @@ try_vbe_mode:
     ret
 
 setup_vbe:
+    movb $0, vbe_ready
     movw $0x0144, %cx
     movw %cx, vbe_selected_mode
     call try_vbe_mode
@@ -175,6 +196,7 @@ setup_vbe:
     int $0x10
     cmpw $0x004f, %ax
     jne 2f
+    movb $1, vbe_ready
     clc
     ret
 2:
@@ -307,17 +329,6 @@ edd_error:
     movw $edd_msg, %si
     call print_string
     jmp halt
-disk_error:
-    movw $disk_msg, %si
-    call print_string
-    jmp halt
-e820_error:
-    movw $e820_msg, %si
-    call print_string
-    jmp halt
-vbe_error:
-    movw $vbe_msg, %si
-    call print_string
 halt:
     cli
 1:
@@ -347,19 +358,27 @@ kernel_segment:
 kernel_lba:
     .quad KERNEL_LBA
 
+.align 4
+drive_params:
+    .word 0x001e
+    .space 28, 0
+
 .align 8
 gdt:
     .quad 0x0000000000000000
     .quad 0x00cf9a000000ffff
     .quad 0x00cf92000000ffff
     .quad 0x00af9a000000ffff
+    # 16-bit protected-mode code/data used only by the BIOS thunk.
+    .quad 0x00009a000000ffff
+    .quad 0x000092000000ffff
 gdt_end:
 gdt_descriptor:
     .word gdt_end - gdt - 1
     .long gdt
 
 banner:
-    .asciz "JoshBIOS Boot Manager 0.3\r\n=========================\r\n\r\n"
+    .asciz "JoshBIOS Boot Manager 0.4\r\n=========================\r\n\r\n"
 menu:
     .asciz "[Enter/B] Boot Josh kernel\r\n[D] Diagnostics\r\n[R] Reboot\r\n\r\nAuto-booting in about 3 seconds...\r\n"
 booting_msg: .asciz "Starting Josh kernel...\r\n"
@@ -371,14 +390,15 @@ diag_no: .asciz "not available\r\n"
 diag_abi: .asciz "Josh Boot Protocol: v0.1 experimental\r\n"
 diag_continue: .asciz "\r\nPress any key to return to the boot menu.\r\n"
 edd_msg: .asciz "BIOS EDD extensions unavailable.\r\n"
-disk_msg: .asciz "Kernel extent read failed.\r\n"
-e820_msg: .asciz "E820 memory map unavailable.\r\n"
-vbe_msg: .asciz "32-bpp VBE framebuffer unavailable.\r\n"
 newline: .asciz "\r\n"
 boot_drive: .byte 0
+vbe_ready: .byte 0
 start_ticks: .word 0
 e820_count: .word 0
 vbe_selected_mode: .word 0
+.align 8
+bios_disk_sectors:
+    .quad 0
 
 .code32
 protected_mode:
