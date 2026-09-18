@@ -100,6 +100,10 @@ static void test_mbr_and_fat32(void) {
     assert(josh_partition_find_boot(&device,&partition)==JOSH_PARTITION_OK);
     assert(partition.scheme==JOSH_PARTITION_SCHEME_MBR && partition.first_lba==2048 && partition.sector_count==68000);
 
+    assert(josh_partition_range_is_unallocated(&device, 1984, 2));
+    assert(!josh_partition_range_is_unallocated(&device, 2048, 2));
+    assert(!josh_partition_range_is_unallocated(&device, 0, 1));
+
     josh_fat32_t fs;
     assert(josh_fat32_mount(&device,&partition,&fs)==JOSH_FAT32_OK);
     josh_fat32_file_t kernel;
@@ -156,6 +160,7 @@ static void test_gpt(void) {
     josh_block_device_t device={&disk,disk.sectors,memory_read}; josh_partition_t partition;
     assert(josh_partition_find_boot(&device,&partition)==JOSH_PARTITION_OK);
     assert(partition.scheme==JOSH_PARTITION_SCHEME_GPT && partition.first_lba==100 && partition.sector_count==101);
+    assert(!josh_partition_range_is_unallocated(&device, 300, 2));
     disk.bytes[JOSH_BLOCK_SECTOR_SIZE+40]^=1u;
     assert(josh_partition_find_boot(&device,&partition)==JOSH_PARTITION_CORRUPT);
     free(disk.bytes);

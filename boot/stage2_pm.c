@@ -44,6 +44,7 @@ extern int bios_block_write(void *context, unsigned long long lba,
                             unsigned int sector_count, const void *buffer);
 
 unsigned long long stage2_kernel_entry;
+static int health_persistent_enabled;
 
 static inline void out8(unsigned short port, unsigned char value) {
     __asm__ volatile ("outb %0,%1" : : "a"(value), "Nd"(port));
@@ -255,29 +256,34 @@ static int health_load(josh_boot_health_record_t *record) {
     josh_boot_health_record_t b;
     memzero(&a, sizeof(a));
     memzero(&b, sizeof(b));
-    (void)health_read_copy(JOSH_BOOT_HEALTH_LBA_A, &a);
-    (void)health_read_copy(JOSH_BOOT_HEALTH_LBA_B, &b);
 
-    if (!josh_boot_health_choose(&a, &b, record)) {
+    health_persistent_enabled = 0;
+    int have_a = health_read_copy(JOSH_BOOT_HEALTH_LBA_A, &a);
+    int have_b = health_read_copy(JOSH_BOOT_HEALTH_LBA_B, &b);
+
+    if (!have_a && !have_b) {
         josh_boot_health_default(record);
-        if (!health_write_copy(JOSH_BOOT_HEALTH_LBA_A, record) ||
-            !health_write_copy(JOSH_BOOT_HEALTH_LBA_B, record)) {
-            serial_write("JOSHBOOT_WARN_HEALTH_INIT_PERSIST\n");
-        } else {
-            serial_write("JOSHBOOT_HEALTH_INITIALIZED\n");
-        }
+        serial_write("JOSHBOOT_HEALTH_VOLATILE_UNPROVISIONED\n");
         return 1;
     }
 
+    (void)josh_boot_health_choose(&a, &b, record);
+    health_persistent_enabled = 1;
     serial_write("JOSHBOOT_HEALTH_LOADED\n");
     return 1;
 }
 
 static int health_persist(const josh_boot_health_record_t *record) {
+    if (!health_persistent_enabled) {
+        serial_write("JOSHBOOT_HEALTH_VOLATILE_NO_WRITE\n");
+        return 0;
+    }
+
     unsigned long long lba =
         (record->generation & 1u) ?
             JOSH_BOOT_HEALTH_LBA_B : JOSH_BOOT_HEALTH_LBA_A;
     if (!health_write_copy(lba, record)) {
+        health_persistent_enabled = 0;
         serial_write("JOSHBOOT_WARN_HEALTH_PERSIST\n");
         return 0;
     }
@@ -358,6 +364,12 @@ static int load_kernel_file(unsigned int *image_bytes, josh_boot_config_t *confi
     }
     serial_write("JOSHBOOT_PARTITION_OK\n");
 
+    int health_layout_safe = josh_partition_range_is_unallocated(
+        &device, JOSH_BOOT_HEALTH_LBA_A, 2u);
+    if (!health_layout_safe) {
+        serial_write("JOSHBOOT_HEALTH_LAYOUT_UNSAFE_VOLATILE\n");
+    }
+
     josh_fat32_t filesystem;
     if (josh_fat32_mount(&device, &partition, &filesystem) != JOSH_FAT32_OK) {
         serial_write("JOSHBOOT_ERROR_FAT32\n");
@@ -397,7 +409,11 @@ static int load_kernel_file(unsigned int *image_bytes, josh_boot_config_t *confi
     serial_write("JOSHBOOT_CONFIG_OK\n");
 
     josh_boot_health_record_t health;
-    if (!health_load(&health)) {
+    if (!health_layout_safe) {
+        josh_boot_health_default(&health);
+        health_persistent_enabled = 0;
+        serial_write("JOSHBOOT_HEALTH_VOLATILE_LAYOUT\n");
+    } else if (!health_load(&health)) {
         serial_write("JOSHBOOT_ERROR_HEALTH_LOAD\n");
         return -1;
     }

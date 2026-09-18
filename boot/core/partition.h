@@ -30,6 +30,9 @@ typedef struct {
 
 josh_partition_status_t josh_partition_find_boot(const josh_block_device_t *device,
                                                   josh_partition_t *partition);
+int josh_partition_range_is_unallocated(const josh_block_device_t *device,
+                                         uint64_t first_lba,
+                                         uint64_t sector_count);
 const char *josh_partition_status_string(josh_partition_status_t status);
 
 #endif

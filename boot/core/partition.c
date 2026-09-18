@@ -168,6 +168,59 @@ josh_partition_status_t josh_partition_find_boot(const josh_block_device_t *devi
     return JOSH_PARTITION_OK;
 }
 
+static int ranges_overlap(uint64_t a_first, uint64_t a_count,
+                          uint64_t b_first, uint64_t b_count) {
+    if (a_count == 0u || b_count == 0u) return 0;
+    uint64_t a_last = a_first + a_count - 1u;
+    uint64_t b_last = b_first + b_count - 1u;
+    if (a_last < a_first || b_last < b_first) return 1;
+    return !(a_last < b_first || b_last < a_first);
+}
+
+int josh_partition_range_is_unallocated(const josh_block_device_t *device,
+                                         uint64_t first_lba,
+                                         uint64_t sector_count) {
+    if (!device || !device->read ||
+        !range_valid(device, first_lba, sector_count) ||
+        ranges_overlap(first_lba, sector_count, 0u, 1u)) {
+        return 0;
+    }
+
+    uint8_t mbr[JOSH_BLOCK_SECTOR_SIZE];
+    if (josh_block_read(device, 0, 1, mbr) != 0) return 0;
+    if (mbr[MBR_SIGNATURE_OFFSET] != 0x55 ||
+        mbr[MBR_SIGNATURE_OFFSET + 1] != 0xAA) {
+        return 0;
+    }
+
+    for (unsigned i = 0; i < MBR_PARTITION_COUNT; ++i) {
+        const uint8_t *entry =
+            mbr + MBR_PARTITION_OFFSET + i * MBR_PARTITION_SIZE;
+        uint8_t status = entry[0];
+        uint8_t type = entry[4];
+        uint64_t partition_first = read_le32(entry + 8);
+        uint64_t partition_count = read_le32(entry + 12);
+
+        if (status != 0x00 && status != 0x80) return 0;
+        if (type == 0 || partition_count == 0) continue;
+
+        /*
+         * GPT uses metadata outside the protective MBR partition entry,
+         * including a backup header/table. Until JoshBootloader has a
+         * dedicated GPT health-storage partition, never write raw health
+         * sectors on GPT media.
+         */
+        if (type == 0xEE) return 0;
+        if (!range_valid(device, partition_first, partition_count)) return 0;
+        if (ranges_overlap(first_lba, sector_count,
+                           partition_first, partition_count)) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 const char *josh_partition_status_string(josh_partition_status_t status) {
     switch (status) {
         case JOSH_PARTITION_OK: return "ok";

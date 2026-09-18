@@ -123,7 +123,7 @@ run: all
 smoke: all
 	@rm -f $(BUILD)/boot.log; 	  status=0; 	  timeout 10s qemu-system-i386 	    -drive format=raw,file=$(BUILD)/joshbios.img 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/boot.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBIOS_BOOTINFO_OK $(BUILD)/boot.log; 	  grep -q JOSHBIOS_BOOT_OK $(BUILD)/boot.log; 	  echo "JoshBIOS QEMU boot smoke test passed."
 
-bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
+bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin $(BUILD)/josh-healthctl
 	@test -f "$(ASHFALLEN_KERNEL)" || { echo "AshFallen kernel not found: $(ASHFALLEN_KERNEL)"; exit 1; }
 	@kernel_size=$$(wc -c < "$(ASHFALLEN_KERNEL)"); max=$$(( $(KERNEL_SECTORS) * 512 )); 	  test $$kernel_size -le $$max || { echo "AshFallen kernel too large for loader buffer: $$kernel_size > $$max"; exit 1; }
 	truncate -s 67108864 $(BRIDGE_IMAGE)
@@ -148,6 +148,7 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL-PREV.ELF
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/RECOVERY.ELF
+	$(BUILD)/josh-healthctl init $(BRIDGE_IMAGE) >/dev/null
 	@echo "JoshBootloader FAT32 + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
 
 bridge-smoke: bridge-image
