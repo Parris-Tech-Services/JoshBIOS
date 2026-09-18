@@ -1,6 +1,7 @@
 CC ?= gcc
 LD ?= ld
 OBJCOPY ?= objcopy
+HOST_CC ?= cc
 UEFI_CC ?= clang
 UEFI_LD ?= lld-link
 BUILD := build
@@ -9,12 +10,13 @@ KERNEL_SECTORS := 64
 
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
+HOST_CFLAGS := -std=c11 -O2 -Wall -Wextra -Werror -Iboot/core
 UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wchar -mno-red-zone -fno-stack-protector -Wall -Wextra -Werror -O2
 
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
 
-.PHONY: all clean image check run smoke uefi uefi-image uefi-smoke
+.PHONY: all clean image check run smoke test uefi uefi-image uefi-smoke
 all: image check
 
 $(BUILD):
@@ -61,6 +63,12 @@ check: image
 	@test $$(wc -c < $(BUILD)/stage1.bin) -eq 512
 	@sig=$$(od -An -tx1 -j510 -N2 $(BUILD)/stage1.bin | tr -d ' \n'); test "$$sig" = "55aa"
 	@echo "JoshBIOS image OK: $(BUILD)/joshbios.img"
+
+$(BUILD)/test_boot_storage: boot/core/partition.c boot/core/partition.h boot/core/fat32.c boot/core/fat32.h boot/core/block.h tests/test_boot_storage.c | $(BUILD)
+	$(HOST_CC) $(HOST_CFLAGS) boot/core/partition.c boot/core/fat32.c tests/test_boot_storage.c -o $@
+
+test: $(BUILD)/test_boot_storage
+	$(BUILD)/test_boot_storage
 
 run: all
 	qemu-system-i386 -drive format=raw,file=$(BUILD)/joshbios.img
