@@ -1,0 +1,63 @@
+name: Promote verified Claude boot stack
+
+on:
+  push:
+    branches: ['verify/claude-boot-stack']
+    paths:
+      - '.github/workflows/promote-claude-bundle.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  promote-exact-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: verify/claude-boot-stack
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc-multilib dosfstools mtools python3 unzip
+
+      - name: Reconstruct exact uploaded archive
+        run: |
+          cat recovery/claude/josh-boot-stack.zip.part* > /tmp/josh-boot-stack.zip
+          echo '85952b3c5abe42b19926d524e10c2a76769bde7ca27d571e843c4507935b456b  /tmp/josh-boot-stack.zip' | sha256sum -c -
+          rm -rf /tmp/josh-boot-stack
+          unzip -q /tmp/josh-boot-stack.zip -d /tmp/josh-boot-stack
+
+      - name: Verify before promotion
+        working-directory: /tmp/josh-boot-stack/josh-boot-stack
+        run: |
+          make -f Makefile.tests test
+          make -f Makefile.tests buildcheck
+
+      - name: Replace recovery copies with exact verified files
+        run: |
+          src=/tmp/josh-boot-stack/josh-boot-stack
+          cp -a "$src/boot/fat32.c" boot/fat32.c
+          cp -a "$src/boot/fat32.h" boot/fat32.h
+          cp -a "$src/boot/elf64.c" boot/elf64.c
+          cp -a "$src/boot/elf64.h" boot/elf64.h
+          cp -a "$src/boot/ata.c" boot/ata.c
+          cp -a "$src/boot/ata.h" boot/ata.h
+          cp -a "$src/boot/longmode.S" boot/longmode.S
+          cp -a "$src/Makefile.tests" Makefile.tests
+          rm -rf tests
+          cp -a "$src/tests" tests
+
+      - name: Record exact-source import
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add boot/fat32.c boot/fat32.h boot/elf64.c boot/elf64.h boot/ata.c boot/ata.h boot/longmode.S Makefile.tests tests
+          if git diff --cached --quiet; then
+            echo "Exact files already match; nothing to commit."
+            exit 0
+          fi
+          git commit -m "import: exact verified Claude boot-stack sources and tests"
+          git push origin HEAD:verify/claude-boot-stack
