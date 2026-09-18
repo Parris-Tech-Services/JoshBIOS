@@ -7,6 +7,8 @@ UEFI_LD ?= lld-link
 BUILD := build
 STAGE2_SECTORS := 32
 KERNEL_SECTORS := 512
+ASHFALLEN_KERNEL ?= ashfallen/kernel/bin/kernel
+BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
 
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
@@ -16,7 +18,7 @@ UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wch
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
 
-.PHONY: all clean image check run smoke host-tests uefi uefi-image uefi-smoke
+.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke uefi uefi-image uefi-smoke
 all: image check
 
 $(BUILD):
@@ -83,6 +85,18 @@ run: all
 
 smoke: all
 	@rm -f $(BUILD)/boot.log; 	  status=0; 	  timeout 10s qemu-system-i386 	    -drive format=raw,file=$(BUILD)/joshbios.img 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/boot.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBIOS_BOOTINFO_OK $(BUILD)/boot.log; 	  grep -q JOSHBIOS_BOOT_OK $(BUILD)/boot.log; 	  echo "JoshBIOS QEMU boot smoke test passed."
+
+bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
+	@test -f "$(ASHFALLEN_KERNEL)" || { echo "AshFallen kernel not found: $(ASHFALLEN_KERNEL)"; exit 1; }
+	@kernel_size=$$(wc -c < "$(ASHFALLEN_KERNEL)"); max=$$(( $(KERNEL_SECTORS) * 512 )); 	  test $$kernel_size -le $$max || { echo "AshFallen kernel too large for bootstrap extent: $$kernel_size > $$max"; exit 1; }
+	truncate -s 2097152 $(BRIDGE_IMAGE)
+	dd if=$(BUILD)/stage1.bin of=$(BRIDGE_IMAGE) conv=notrunc status=none
+	dd if=$(BUILD)/stage2.bin of=$(BRIDGE_IMAGE) bs=512 seek=1 conv=notrunc status=none
+	dd if="$(ASHFALLEN_KERNEL)" of=$(BRIDGE_IMAGE) bs=512 seek=33 conv=notrunc status=none
+	@echo "JoshBootloader + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
+
+bridge-smoke: bridge-image
+	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader -> AshFallen QEMU bridge smoke test passed."
 
 $(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
