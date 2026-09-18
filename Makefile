@@ -5,7 +5,7 @@ HOSTCC ?= cc
 UEFI_CC ?= clang
 UEFI_LD ?= lld-link
 BUILD := build
-STAGE2_SECTORS := 32
+STAGE2_SECTORS := 64
 KERNEL_SECTORS := 512
 ASHFALLEN_KERNEL ?= ashfallen/kernel/bin/kernel
 BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
@@ -43,13 +43,25 @@ $(BUILD)/stage1.bin: $(BUILD)/stage1.o
 $(BUILD)/stage2.o: boot/stage2.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h | $(BUILD)
+$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h boot/core/block.h boot/core/partition.h boot/core/fat32.h | $(BUILD)
 	$(CC) $(CFLAGS) -Iboot -c $< -o $@
 
 $(BUILD)/elf64_pm.o: boot/elf64.c boot/elf64.h | $(BUILD)
 	$(CC) $(CFLAGS) -Iboot -c $< -o $@
 
-$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o
+$(BUILD)/partition_pm.o: boot/core/partition.c boot/core/partition.h boot/core/block.h | $(BUILD)
+	$(CC) $(CFLAGS) -Iboot/core -c $< -o $@
+
+$(BUILD)/fat32_pm.o: boot/core/fat32.c boot/core/fat32.h boot/core/block.h boot/core/partition.h | $(BUILD)
+	$(CC) $(CFLAGS) -Iboot/core -c $< -o $@
+
+$(BUILD)/runtime32.o: boot/runtime32.c | $(BUILD)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD)/bios_block.o: boot/bios_block.S | $(BUILD)
+	$(CC) $(ASFLAGS) -c $< -o $@
+
+$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o $(BUILD)/partition_pm.o $(BUILD)/fat32_pm.o $(BUILD)/runtime32.o $(BUILD)/bios_block.o
 	$(LD) -m elf_i386 -Ttext 0x8000 --oformat binary -e _start $^ -o $@
 
 $(BUILD)/entry.o: kernel/entry.S | $(BUILD)
@@ -73,7 +85,7 @@ image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin $(BUILD)/kernel.bin
 	truncate -s 1048576 $(BUILD)/joshbios.img
 	dd if=$(BUILD)/stage1.bin of=$(BUILD)/joshbios.img conv=notrunc status=none
 	dd if=$(BUILD)/stage2.bin of=$(BUILD)/joshbios.img bs=512 seek=1 conv=notrunc status=none
-	dd if=$(BUILD)/kernel.bin of=$(BUILD)/joshbios.img bs=512 seek=33 conv=notrunc status=none
+	dd if=$(BUILD)/kernel.bin of=$(BUILD)/joshbios.img bs=512 seek=65 conv=notrunc status=none
 
 check: image
 	@test $$(wc -c < $(BUILD)/stage1.bin) -eq 512
@@ -88,15 +100,19 @@ smoke: all
 
 bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 	@test -f "$(ASHFALLEN_KERNEL)" || { echo "AshFallen kernel not found: $(ASHFALLEN_KERNEL)"; exit 1; }
-	@kernel_size=$$(wc -c < "$(ASHFALLEN_KERNEL)"); max=$$(( $(KERNEL_SECTORS) * 512 )); 	  test $$kernel_size -le $$max || { echo "AshFallen kernel too large for bootstrap extent: $$kernel_size > $$max"; exit 1; }
-	truncate -s 2097152 $(BRIDGE_IMAGE)
+	@kernel_size=$(wc -c < "$(ASHFALLEN_KERNEL)"); max=$(( $(KERNEL_SECTORS) * 512 )); 	  test $kernel_size -le $max || { echo "AshFallen kernel too large for loader buffer: $kernel_size > $max"; exit 1; }
+	truncate -s 67108864 $(BRIDGE_IMAGE)
 	dd if=$(BUILD)/stage1.bin of=$(BRIDGE_IMAGE) conv=notrunc status=none
 	dd if=$(BUILD)/stage2.bin of=$(BRIDGE_IMAGE) bs=512 seek=1 conv=notrunc status=none
-	dd if="$(ASHFALLEN_KERNEL)" of=$(BRIDGE_IMAGE) bs=512 seek=33 conv=notrunc status=none
-	@echo "JoshBootloader + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
+	printf '\200\000\000\000\014\000\000\000\000\010\000\000\000\370\001\000' | dd of=$(BRIDGE_IMAGE) bs=1 seek=446 conv=notrunc status=none
+	mformat -i "$(BRIDGE_IMAGE)@@1048576" -F -v JOSHBOOT ::
+	mmd -i "$(BRIDGE_IMAGE)@@1048576" ::/BOOT
+	mmd -i "$(BRIDGE_IMAGE)@@1048576" ::/BOOT/JOSH
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
+	@echo "JoshBootloader FAT32 + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
 
 bridge-smoke: bridge-image
-	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader -> AshFallen QEMU bridge smoke test passed."
+	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$?; 	  test $status -eq 0 -o $status -eq 124; 	  grep -q JOSHBOOT_PARTITION_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_FAT32_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_PATH_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_FILE_LOADED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader FAT32 -> AshFallen QEMU bridge smoke test passed."
 
 $(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
