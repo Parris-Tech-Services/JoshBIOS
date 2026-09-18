@@ -105,7 +105,7 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 	dd if=$(BUILD)/stage1.bin of=$(BRIDGE_IMAGE) conv=notrunc status=none
 	dd if=$(BUILD)/stage2.bin of=$(BRIDGE_IMAGE) bs=512 seek=1 conv=notrunc status=none
 	printf '\200\000\000\000\014\000\000\000\000\010\000\000\000\370\001\000' | dd of=$(BRIDGE_IMAGE) bs=1 seek=446 conv=notrunc status=none
-	mformat -i "$(BRIDGE_IMAGE)@@1048576" -F -v JOSHBOOT ::
+	mformat -i "$(BRIDGE_IMAGE)@@1048576" -F -c 1 -v JOSHBOOT ::
 	mmd -i "$(BRIDGE_IMAGE)@@1048576" ::/BOOT
 	mmd -i "$(BRIDGE_IMAGE)@@1048576" ::/BOOT/JOSH
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
