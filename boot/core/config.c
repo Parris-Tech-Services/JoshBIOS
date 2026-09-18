@@ -8,6 +8,8 @@
 #define FIELD_KERNEL   (1u << 5)
 #define FIELD_CMDLINE  (1u << 6)
 #define FIELD_FLAGS    (1u << 7)
+#define FIELD_PREVIOUS_KERNEL (1u << 8)
+#define FIELD_RECOVERY_KERNEL (1u << 9)
 
 #define REQUIRED_FIELDS \
     (FIELD_VERSION | FIELD_DEFAULT | FIELD_TIMEOUT | FIELD_ENTRY | FIELD_NAME | FIELD_KERNEL)
@@ -137,6 +139,8 @@ static josh_boot_config_status_t set_field(
     else if (span_equal(key, key_length, "entry")) field = FIELD_ENTRY;
     else if (span_equal(key, key_length, "name")) field = FIELD_NAME;
     else if (span_equal(key, key_length, "kernel")) field = FIELD_KERNEL;
+    else if (span_equal(key, key_length, "previous_kernel")) field = FIELD_PREVIOUS_KERNEL;
+    else if (span_equal(key, key_length, "recovery_kernel")) field = FIELD_RECOVERY_KERNEL;
     else if (span_equal(key, key_length, "cmdline")) field = FIELD_CMDLINE;
     else if (span_equal(key, key_length, "flags")) field = FIELD_FLAGS;
     else if (span_equal(key, key_length, "module") ||
@@ -190,9 +194,20 @@ static josh_boot_config_status_t set_field(
         return JOSH_CONFIG_OK;
     }
 
-    if (field == FIELD_KERNEL) {
+    if (field == FIELD_KERNEL ||
+        field == FIELD_PREVIOUS_KERNEL ||
+        field == FIELD_RECOVERY_KERNEL) {
+        char *destination = config->kernel_path;
+        size_t capacity = sizeof(config->kernel_path);
+        if (field == FIELD_PREVIOUS_KERNEL) {
+            destination = config->previous_kernel_path;
+            capacity = sizeof(config->previous_kernel_path);
+        } else if (field == FIELD_RECOVERY_KERNEL) {
+            destination = config->recovery_kernel_path;
+            capacity = sizeof(config->recovery_kernel_path);
+        }
         if (!path_valid(value, value_length) ||
-            !copy_value(config->kernel_path, sizeof(config->kernel_path), value, value_length)) {
+            !copy_value(destination, capacity, value, value_length)) {
             return JOSH_CONFIG_INVALID_VALUE;
         }
         return JOSH_CONFIG_OK;

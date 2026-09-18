@@ -35,6 +35,8 @@ typedef struct {
     char entry_id[JOSH_BOOT_CONFIG_ENTRY_ID_MAX + 1u];
     char display_name[JOSH_BOOT_CONFIG_NAME_MAX + 1u];
     char kernel_path[JOSH_BOOT_CONFIG_PATH_MAX + 1u];
+    char previous_kernel_path[JOSH_BOOT_CONFIG_PATH_MAX + 1u];
+    char recovery_kernel_path[JOSH_BOOT_CONFIG_PATH_MAX + 1u];
     char command_line[JOSH_BOOT_CONFIG_CMDLINE_MAX + 1u];
 } josh_boot_config_t;
 

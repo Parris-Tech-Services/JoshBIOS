@@ -12,6 +12,8 @@ static const char valid_config[] =
     "entry=josh\n"
     "name=Josh OS\n"
     "kernel=/boot/josh/kernel.elf\n"
+    "previous_kernel=/boot/josh/kernel-prev.elf\n"
+    "recovery_kernel=/boot/josh/recovery.elf\n"
     "cmdline=quiet\n"
     "flags=development\n";
 
@@ -28,6 +30,8 @@ static void test_valid(void) {
     assert(strcmp(config.entry_id, "josh") == 0);
     assert(strcmp(config.display_name, "Josh OS") == 0);
     assert(strcmp(config.kernel_path, "/boot/josh/kernel.elf") == 0);
+    assert(strcmp(config.previous_kernel_path, "/boot/josh/kernel-prev.elf") == 0);
+    assert(strcmp(config.recovery_kernel_path, "/boot/josh/recovery.elf") == 0);
     assert(strcmp(config.command_line, "quiet") == 0);
     assert(config.flags == JOSH_BOOT_CONFIG_FLAG_DEVELOPMENT);
 }
@@ -42,6 +46,8 @@ static void test_optional_fields(void) {
         "kernel=/BOOT/JOSH/KERNEL.ELF\n";
     josh_boot_config_t config;
     assert(parse_text(text, &config) == JOSH_CONFIG_OK);
+    assert(config.previous_kernel_path[0] == '\0');
+    assert(config.recovery_kernel_path[0] == '\0');
     assert(config.command_line[0] == '\0');
     assert(config.flags == 0);
 }
