@@ -1,8 +1,13 @@
 #include "elf64.h"
 #include "protocol.h"
+#include "core/block.h"
+#include "core/partition.h"
+#include "core/fat32.h"
 
 #define KERNEL_IMAGE_ADDR 0x00010000u
 #define KERNEL_IMAGE_BYTES (512u * 512u)
+#define KERNEL_PATH "/boot/josh/kernel.elf"
+#define BIOS_DEVICE_SECTORS 0x100000000ULL
 
 #define KERNEL_VIRT_BASE 0xffffffff80000000ULL
 #define KERNEL_PHYS_BASE 0x00200000u
@@ -27,7 +32,10 @@
 
 extern unsigned short e820_count;
 extern unsigned char boot_drive;
+extern unsigned char filesystem_boot;
 extern void enter_long_mode(void);
+extern int bios_block_read(void *context, unsigned long long lba,
+                           unsigned int sector_count, void *buffer);
 
 unsigned long long stage2_kernel_entry;
 
@@ -143,6 +151,59 @@ static unsigned long long find_smbios(void) {
     return 0;
 }
 
+static int load_kernel_file(unsigned int *image_bytes) {
+    if (!image_bytes) return -1;
+
+    josh_block_device_t device;
+    device.context = 0;
+    device.sector_count = BIOS_DEVICE_SECTORS;
+    device.read = bios_block_read;
+
+    josh_partition_t partition;
+    if (josh_partition_find_boot(&device, &partition) != JOSH_PARTITION_OK) {
+        serial_write("JOSHBOOT_ERROR_PARTITION\n");
+        return -1;
+    }
+    serial_write("JOSHBOOT_PARTITION_OK\n");
+
+    josh_fat32_t filesystem;
+    if (josh_fat32_mount(&device, &partition, &filesystem) != JOSH_FAT32_OK) {
+        serial_write("JOSHBOOT_ERROR_FAT32\n");
+        return -1;
+    }
+    serial_write("JOSHBOOT_FAT32_OK\n");
+
+    josh_fat32_file_t kernel;
+    if (josh_fat32_open_path(&filesystem, KERNEL_PATH, &kernel) != JOSH_FAT32_OK) {
+        serial_write("JOSHBOOT_ERROR_KERNEL_PATH\n");
+        return -1;
+    }
+    serial_write("JOSHBOOT_KERNEL_PATH_OK\n");
+
+    if (kernel.size == 0 || kernel.size > KERNEL_IMAGE_BYTES) {
+        serial_write("JOSHBOOT_ERROR_KERNEL_SIZE\n");
+        return -1;
+    }
+
+    unsigned int bytes_read = 0;
+    if (josh_fat32_read_file(
+            &filesystem,
+            &kernel,
+            0,
+            (void *)KERNEL_IMAGE_ADDR,
+            kernel.size,
+            &bytes_read
+        ) != JOSH_FAT32_OK ||
+        bytes_read != kernel.size) {
+        serial_write("JOSHBOOT_ERROR_KERNEL_READ\n");
+        return -1;
+    }
+
+    *image_bytes = kernel.size;
+    serial_write("JOSHBOOT_KERNEL_FILE_LOADED\n");
+    return 0;
+}
+
 static void build_page_tables(void) {
     memzero((void *)PML4_ADDR, 0x8000u);
 
@@ -182,10 +243,10 @@ static void build_page_tables(void) {
     }
 }
 
-static int load_elf(JoshElf64Summary *summary) {
+static int load_elf(JoshElf64Summary *summary, unsigned int image_bytes) {
     const void *image = (const void *)KERNEL_IMAGE_ADDR;
     JoshElf64Status status =
-        josh_elf64_validate(image, KERNEL_IMAGE_BYTES, summary);
+        josh_elf64_validate(image, image_bytes, summary);
 
     if (status != JOSH_ELF64_OK) return -1;
     if (summary->virtual_min < KERNEL_VIRT_BASE ||
@@ -202,7 +263,7 @@ static int load_elf(JoshElf64Summary *summary) {
         JoshElf64LoadSegment segment;
         if (josh_elf64_load_segment(
                 image,
-                KERNEL_IMAGE_BYTES,
+                image_bytes,
                 i,
                 &segment
             ) != JOSH_ELF64_OK) {
@@ -298,17 +359,33 @@ static void fill_boot_info(const JoshElf64Summary *summary) {
 
 int stage2_pm_main(void) {
     unsigned char *image = (unsigned char *)KERNEL_IMAGE_ADDR;
+    unsigned int image_bytes = KERNEL_IMAGE_BYTES;
+
+    serial_init();
 
     if (image[0] != 0x7f || image[1] != 'E' ||
         image[2] != 'L' || image[3] != 'F') {
-        return 0;
+        if (!filesystem_boot) {
+            return 0;
+        }
+
+        serial_write("JOSHBOOT_FS_LOAD_BEGIN\n");
+        if (load_kernel_file(&image_bytes) != 0) {
+            serial_write("JOSHBOOT_ERROR_FILESYSTEM_LOAD\n");
+            for (;;) __asm__ volatile ("cli; hlt");
+        }
+
+        if (image[0] != 0x7f || image[1] != 'E' ||
+            image[2] != 'L' || image[3] != 'F') {
+            serial_write("JOSHBOOT_ERROR_KERNEL_NOT_ELF\n");
+            for (;;) __asm__ volatile ("cli; hlt");
+        }
     }
 
-    serial_init();
     serial_write("JOSHBOOT_ELF64_DETECTED\n");
 
     JoshElf64Summary summary;
-    if (load_elf(&summary) != 0) {
+    if (load_elf(&summary, image_bytes) != 0) {
         serial_write("JOSHBOOT_ERROR_ELF64\n");
         for (;;) __asm__ volatile ("cli; hlt");
     }
