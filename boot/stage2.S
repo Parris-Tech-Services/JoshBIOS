@@ -5,6 +5,7 @@
 .global e820_count
 .global boot_drive
 .global gdt_descriptor
+.global filesystem_boot
 .extern stage2_pm_main
 .extern stage2_kernel_entry
 
@@ -41,7 +42,10 @@ boot_kernel:
     # The unpartitioned development image keeps the fixed-extent 32-bit
     # regression payload so the tiny boot-stack test remains useful.
     call has_boot_partition
-    jnc prepare_native_platform
+    jc 1f
+    movb $1, filesystem_boot
+    jmp prepare_native_platform
+1:
 
     call load_kernel_extent
     jc disk_error
@@ -403,6 +407,7 @@ e820_msg: .asciz "E820 memory map unavailable.\r\n"
 vbe_msg: .asciz "32-bpp VBE framebuffer unavailable.\r\n"
 newline: .asciz "\r\n"
 boot_drive: .byte 0
+filesystem_boot: .byte 0
 start_ticks: .word 0
 e820_count: .word 0
 vbe_selected_mode: .word 0
