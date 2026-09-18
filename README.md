@@ -51,6 +51,7 @@ The convergence point should be a **versioned boot ABI** rather than copying ker
 
 ## Detailed roadmaps
 
+- [Full-stack programming plan](docs/FULL_STACK_PROGRAMMING_PLAN.md) — all 37 phases from power button to applications, including JoshEC/custom-hardware endgame.
 - [Overall roadmap](ROADMAP.md)
 - [JoshFirmware / JoshBIOS roadmap](docs/FIRMWARE_ROADMAP.md)
 - [JoshBootloader roadmap](docs/BOOTLOADER_ROADMAP.md)
