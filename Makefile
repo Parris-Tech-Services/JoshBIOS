@@ -30,9 +30,13 @@ $(BUILD)/test_elf64: tests/test_elf64.c boot/elf64.c boot/elf64.h | $(BUILD)
 $(BUILD)/test_boot_storage: tests/test_boot_storage.c boot/core/block.h boot/core/partition.h boot/core/partition.c boot/core/fat32.h boot/core/fat32.c | $(BUILD)
 	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tests/test_boot_storage.c boot/core/partition.c boot/core/fat32.c -o $@
 
-host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage
+$(BUILD)/test_boot_config: tests/test_boot_config.c boot/core/config.h boot/core/config.c | $(BUILD)
+	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tests/test_boot_config.c boot/core/config.c -o $@
+
+host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_config
 	$(BUILD)/test_elf64
 	$(BUILD)/test_boot_storage
+	$(BUILD)/test_boot_config
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
@@ -43,7 +47,7 @@ $(BUILD)/stage1.bin: $(BUILD)/stage1.o
 $(BUILD)/stage2.o: boot/stage2.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h boot/core/block.h boot/core/partition.h boot/core/fat32.h | $(BUILD)
+$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h boot/core/block.h boot/core/partition.h boot/core/fat32.h boot/core/config.h | $(BUILD)
 	$(CC) $(CFLAGS) -Iboot -c $< -o $@
 
 $(BUILD)/elf64_pm.o: boot/elf64.c boot/elf64.h | $(BUILD)
@@ -55,13 +59,16 @@ $(BUILD)/partition_pm.o: boot/core/partition.c boot/core/partition.h boot/core/b
 $(BUILD)/fat32_pm.o: boot/core/fat32.c boot/core/fat32.h boot/core/block.h boot/core/partition.h | $(BUILD)
 	$(CC) $(CFLAGS) -Iboot/core -c $< -o $@
 
+$(BUILD)/config_pm.o: boot/core/config.c boot/core/config.h | $(BUILD)
+	$(CC) $(CFLAGS) -Iboot/core -c $< -o $@
+
 $(BUILD)/runtime32.o: boot/runtime32.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/bios_block.o: boot/bios_block.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o $(BUILD)/partition_pm.o $(BUILD)/fat32_pm.o $(BUILD)/runtime32.o $(BUILD)/bios_block.o
+$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o $(BUILD)/partition_pm.o $(BUILD)/fat32_pm.o $(BUILD)/config_pm.o $(BUILD)/runtime32.o $(BUILD)/bios_block.o
 	$(LD) -m elf_i386 -Ttext 0x8000 --oformat binary -e _start $^ -o $@
 
 $(BUILD)/entry.o: kernel/entry.S | $(BUILD)
