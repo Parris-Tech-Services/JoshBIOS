@@ -196,7 +196,7 @@ josh_fat32_status_t josh_fat32_open_path(const josh_fat32_t *fs,
                                           josh_fat32_file_t *file) {
     if (!fs || !path || !file) return JOSH_FAT32_BAD_PATH;
     while (*path == '/') ++path;
-    if (*path == ' ') {
+    if (*path == '\0') {
         file->first_cluster = fs->root_cluster;
         file->size = 0;
         file->attributes = FAT_ATTR_DIRECTORY;
@@ -206,7 +206,7 @@ josh_fat32_status_t josh_fat32_open_path(const josh_fat32_t *fs,
     uint32_t directory = fs->root_cluster;
     for (;;) {
         const char *segment = path;
-        while (*path != ' ' && *path != '/') ++path;
+        while (*path != '\0' && *path != '/') ++path;
         size_t length = (size_t)(path - segment);
         uint8_t short_name[11];
         josh_fat32_status_t status = short_name_from_segment(segment, length, short_name);
@@ -217,7 +217,7 @@ josh_fat32_status_t josh_fat32_open_path(const josh_fat32_t *fs,
         if (status != JOSH_FAT32_OK) return status;
 
         while (*path == '/') ++path;
-        if (*path == ' ') {
+        if (*path == '\0') {
             *file = found;
             return JOSH_FAT32_OK;
         }
