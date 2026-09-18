@@ -65,6 +65,7 @@ The convergence point should be a **versioned boot ABI** rather than copying ker
 - [Difficulty, scope and feasibility](docs/DIFFICULTY_SCOPE_AND_FEASIBILITY.md) — what is tractable, brutal, blocked by platform access, and where AI assistance stops being strong.
 - [Overall roadmap](ROADMAP.md)
 - [JoshFirmware / JoshBIOS roadmap](docs/FIRMWARE_ROADMAP.md)
+- [First physical hardware target — Compaq 610](docs/HARDWARE_TARGET_COMPAQ_610.md) — selected development machine, validation evidence and firmware recovery gates.
 - [JoshBootloader roadmap](docs/BOOTLOADER_ROADMAP.md)
 - [Josh Boot Protocol implementation plan](docs/JOSH_BOOT_PROTOCOL.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -130,7 +131,7 @@ The firmware track therefore targets **coreboot on explicitly supported boards**
 
 ## Safety
 
-Do **not** flash experimental firmware to a physical motherboard. The current boot image belongs in QEMU or another disposable VM. Physical firmware support will require exact-board support and a recovery programmer.
+Do **not** flash experimental firmware to a physical motherboard. The current boot image belongs in QEMU or another disposable VM. Physical firmware support will require exact-board support and a recovery programmer. The first selected development system is DadLAN Laptop #10 / Compaq 610, but it is **not yet a supported or safe-to-flash JoshFirmware target**; see the hardware target document for the required inventory and recovery gates.
 
 ## Next milestone
 
