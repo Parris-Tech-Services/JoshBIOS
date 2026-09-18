@@ -1,0 +1,75 @@
+name: Coreboot QEMU Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/coreboot-qemu.yml'
+      - 'firmware/coreboot/**'
+      - 'boot/**'
+      - 'Makefile'
+
+permissions:
+  contents: read
+
+jobs:
+  coreboot-to-josh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout JoshBIOS
+        uses: actions/checkout@v4
+
+      - name: Checkout canonical AshFallen kernel
+        uses: actions/checkout@v5
+        with:
+          repository: joshuaparris-max/AshFallen
+          path: ashfallen
+          persist-credentials: false
+
+      - name: Install firmware, kernel and VM dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bison build-essential curl flex git gnat libncurses-dev libssl-dev \
+            zlib1g-dev pkgconf python-is-python3 nasm mtools qemu-system-x86 \
+            clang lld
+
+      - name: Build canonical AshFallen kernel
+        run: make -C ashfallen kernel
+
+      - name: Build JoshBootloader bridge image
+        run: make bridge-image
+
+      - name: Build pinned coreboot QEMU firmware
+        run: bash firmware/coreboot/build-qemu.sh
+
+      - name: Boot coreboot to JoshBootloader to AshFallen
+        run: |
+          rm -f build/coreboot-boot.log
+          status=0
+          timeout 20s qemu-system-x86_64 \
+            -machine pc -m 256M \
+            -bios build/coreboot-qemu.rom \
+            -drive format=raw,file=build/joshbios-ashfallen.img \
+            -display none -serial stdio -monitor none -no-reboot \
+            > build/coreboot-boot.log 2>&1 || status=$?
+          test $status -eq 0 -o $status -eq 124
+          grep -qi coreboot build/coreboot-boot.log
+          grep -q JOSHBOOT_PARTITION_OK build/coreboot-boot.log
+          grep -q JOSHBOOT_FAT32_OK build/coreboot-boot.log
+          grep -q JOSHBOOT_HANDOFF_READY build/coreboot-boot.log
+          grep -q JOSHOS_BOOT_ADAPTER_OK build/coreboot-boot.log
+          grep -q JOSHOS_BOOT_OK build/coreboot-boot.log
+          echo "coreboot -> SeaBIOS -> JoshBootloader -> AshFallen smoke test passed."
+
+      - name: Upload virtual firmware evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: josh-coreboot-qemu
+          path: |
+            build/coreboot-qemu.rom
+            build/coreboot-qemu.rom.sha256
+            build/coreboot-boot.log
+          if-no-files-found: error
