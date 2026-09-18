@@ -4,29 +4,50 @@
 
 The long-term goal is to own the path from power-on firmware through the bootloader and into a JoshBIOS kernel. The first milestone deliberately starts with the part we can make generic and test safely: a real BIOS boot sector, our own Stage 2 loader and our own freestanding kernel.
 
-## JoshOS ecosystem
+## Josh OS ecosystem
 
-JoshBIOS is the low-level boot stack for [JoshOS](https://github.com/Parris-Tech-Services/JoshOS).
+This repository owns the **JoshBIOS / firmware / bootloader research stack**.
 
-```text
-Power button
-   ↓
-JoshFirmware
-   ↓
-JoshBIOS
-   ↓
-JoshBootloader
-   ↓
-JoshOS
-```
+Related repositories:
+
+- **Canonical Josh OS:** [joshuaparris-max/AshFallen](https://github.com/joshuaparris-max/AshFallen) — product track plus the independent x86-64 Josh kernel.
+- **Stage 0 desktop/ISO extraction:** [Parris-Tech-Services/transfer2](https://github.com/Parris-Tech-Services/transfer2) — browser shell + ArchISO compatibility image.
 
 Within this repository:
 
 - **JoshBootloader** lives in [`boot/`](./boot)
 - **JoshFirmware** development lives in [`firmware/`](./firmware)
-- the experimental low-level kernel lives in [`kernel/`](./kernel)
-- the higher-level OS project lives in [Parris-Tech-Services/JoshOS](https://github.com/Parris-Tech-Services/JoshOS)
-- the Stage 0 Josh OS shell/ISO implementation lives in [Parris-Tech-Services/transfer2](https://github.com/Parris-Tech-Services/transfer2)
+- [`kernel/`](./kernel) is a **small boot-stack test kernel/payload**, not the canonical Josh OS kernel
+
+```text
+today:
+
+platform BIOS / SeaBIOS
+        ↓
+JoshBIOS Stage 1
+        ↓
+JoshBootloader Stage 2
+        ↓
+JoshBIOS test kernel
+
+canonical Josh OS native path:
+
+BIOS / UEFI
+        ↓
+Limine
+        ↓
+AshFallen/kernel (x86-64 Josh kernel)
+
+future convergence target:
+
+JoshFirmware / platform firmware
+        ↓
+JoshBootloader
+        ↓
+canonical Josh OS x86-64 kernel
+```
+
+The convergence point should be a **versioned boot ABI** rather than copying kernels between repositories. JoshBootloader will need ELF64/x86-64 loading plus a hand-off containing the memory map, framebuffer, firmware data and other boot information expected by the canonical Josh OS kernel.
 
 ## What works now
 
