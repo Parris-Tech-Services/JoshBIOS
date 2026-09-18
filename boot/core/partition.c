@@ -2,7 +2,14 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
+#if __STDC_HOSTED__
 #include <string.h>
+#else
+void *memcpy(void *restrict destination, const void *restrict source, size_t length);
+void *memset(void *destination, int value, size_t length);
+int memcmp(const void *left, const void *right, size_t length);
+#endif
 
 #define MBR_SIGNATURE_OFFSET 510u
 #define MBR_PARTITION_OFFSET 446u
