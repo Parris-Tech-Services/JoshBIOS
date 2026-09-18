@@ -39,14 +39,18 @@ $(BUILD)/test_boot_config: tests/test_boot_config.c boot/core/config.h boot/core
 $(BUILD)/test_boot_health: tests/test_boot_health.c boot/core/health.h boot/core/health.c | $(BUILD)
 	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tests/test_boot_health.c boot/core/health.c -o $@
 
+$(BUILD)/test_firmware_update: tests/test_firmware_update.c firmware/update.h firmware/update.c | $(BUILD)
+	$(HOSTCC) $(HOST_CFLAGS) -Ifirmware tests/test_firmware_update.c firmware/update.c -o $@
+
 $(BUILD)/josh-healthctl: tools/josh-healthctl.c boot/core/health.h boot/core/health.c | $(BUILD)
 	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tools/josh-healthctl.c boot/core/health.c -o $@
 
-host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_config $(BUILD)/test_boot_health
+host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_config $(BUILD)/test_boot_health $(BUILD)/test_firmware_update
 	$(BUILD)/test_elf64
 	$(BUILD)/test_boot_storage
 	$(BUILD)/test_boot_config
 	$(BUILD)/test_boot_health
+	$(BUILD)/test_firmware_update
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
