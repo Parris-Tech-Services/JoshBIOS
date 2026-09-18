@@ -39,6 +39,9 @@ jobs:
       - name: JoshBootloader to AshFallen bridge smoke test
         run: make bridge-smoke
 
+      - name: Malformed boot config smoke test
+        run: make bridge-config-fail-smoke
+
       - name: Build UEFI scaffold
         run: make uefi-image
 
@@ -73,6 +76,7 @@ jobs:
             build/joshbios-ashfallen.img
             build/joshbios-ashfallen.img.sha256
             build/bridge.log
+            build/bad-config.log
           if-no-files-found: error
 
       - name: Upload UEFI scaffold
