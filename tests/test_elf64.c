@@ -104,6 +104,12 @@ int main(void) {
                JOSH_ELF64_ERR_MAGIC);
 
     make_valid(image);
+    ((TestElf64Header *)image)->type = 3;
+    expect("ET_DYN relocation model",
+           josh_elf64_validate(image, sizeof(image), &summary) ==
+               JOSH_ELF64_ERR_RELOCATION_MODEL);
+
+    make_valid(image);
     ((TestElf64Header *)image)->machine = 3;
     expect("wrong machine",
            josh_elf64_validate(image, sizeof(image), &summary) ==
