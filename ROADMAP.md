@@ -30,19 +30,20 @@ The matching canonical-kernel contract is documented in `AshFallen/docs/BOOT_ABI
 
 Preserve the tiny payload as a regression target, but focus new boot engineering on the canonical kernel.
 
-- [ ] block/storage abstraction instead of fixed sectors;
-- [ ] MBR/GPT discovery;
-- [ ] FAT32 reader;
-- [ ] ELF64 validation/loading;
-- [ ] x86-64 long-mode hand-off;
-- [ ] serial diagnostics;
-- [ ] Josh Boot Protocol v0 builder;
-- [ ] memory-map hand-off;
-- [ ] framebuffer hand-off;
-- [ ] ACPI/SMBIOS hand-off;
-- [ ] load `AshFallen/kernel`;
-- [ ] reach the canonical kernel boot-success marker in QEMU;
-- [ ] keep Limine as a reference path until parity is proven.
+- [x] block/storage abstraction on the legacy-BIOS path;
+- [x] MBR/GPT discovery (host-tested; MBR integrated in the current boot image);
+- [x] FAT32 reader + 8.3 path lookup;
+- [x] load `/boot/josh/kernel.elf` from FAT32 rather than a fixed kernel extent;
+- [x] ELF64 validation/loading;
+- [x] x86-64 long-mode hand-off;
+- [x] serial diagnostics;
+- [x] Josh Boot Protocol v0 builder;
+- [x] memory-map hand-off;
+- [x] framebuffer hand-off;
+- [ ] explicitly assert ACPI/SMBIOS hand-off in integration CI;
+- [x] load the canonical `AshFallen/kernel`;
+- [x] reach the canonical kernel boot-success marker in QEMU;
+- [x] keep Limine working as the reference path.
 
 ## v0.3 — Real boot manager
 
