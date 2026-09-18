@@ -4,7 +4,8 @@ on:
   push:
     branches: ['verify/claude-boot-stack']
     paths:
-      - 'recovery/claude/josh-boot-stack.zip'
+      - 'recovery/claude/josh-boot-stack.zip.part*'
+      - 'recovery/claude/MANIFEST.md'
       - '.github/workflows/verify-claude-bundle.yml'
   workflow_dispatch:
 
@@ -23,16 +24,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential gcc-multilib dosfstools mtools python3 unzip
 
+      - name: Reconstruct and verify preserved bundle
+        run: |
+          cat recovery/claude/josh-boot-stack.zip.part* > /tmp/josh-boot-stack.zip
+          test "$(wc -c < /tmp/josh-boot-stack.zip)" -eq 33543
+          echo '85952b3c5abe42b19926d524e10c2a76769bde7ca27d571e843c4507935b456b  /tmp/josh-boot-stack.zip' | sha256sum -c -
+          unzip -t /tmp/josh-boot-stack.zip
+
       - name: Extract preserved bundle
         run: |
           rm -rf .claude-verify
           mkdir .claude-verify
-          unzip -q recovery/claude/josh-boot-stack.zip -d .claude-verify
+          unzip -q /tmp/josh-boot-stack.zip -d .claude-verify
           test -f .claude-verify/josh-boot-stack/Makefile.tests
-
-      - name: Verify preserved archive checksum
-        run: |
-          echo '85952b3c5abe42b19926d524e10c2a76769bde7ca27d571e843c4507935b456b  recovery/claude/josh-boot-stack.zip' | sha256sum -c -
 
       - name: Run original host tests
         working-directory: .claude-verify/josh-boot-stack
