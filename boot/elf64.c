@@ -5,6 +5,7 @@
 #define ELFDATA2LSB 1u
 #define EV_CURRENT 1u
 #define ET_EXEC 2u
+#define ET_DYN 3u
 #define EM_X86_64 62u
 
 #pragma pack(push, 1)
@@ -76,6 +77,10 @@ static const Elf64Header *header_if_basic_valid(
     }
     if (h->ident[6] != EV_CURRENT || h->version != EV_CURRENT) {
         *status = JOSH_ELF64_ERR_VERSION;
+        return 0;
+    }
+    if (h->type == ET_DYN) {
+        *status = JOSH_ELF64_ERR_RELOCATION_MODEL;
         return 0;
     }
     if (h->type != ET_EXEC) {
@@ -229,6 +234,7 @@ const char *josh_elf64_status_string(JoshElf64Status status) {
         case JOSH_ELF64_ERR_ENDIAN: return "not little endian";
         case JOSH_ELF64_ERR_VERSION: return "unsupported ELF version";
         case JOSH_ELF64_ERR_TYPE: return "not executable ELF";
+        case JOSH_ELF64_ERR_RELOCATION_MODEL: return "unsupported position-independent/relocatable ELF";
         case JOSH_ELF64_ERR_MACHINE: return "not x86-64";
         case JOSH_ELF64_ERR_PHDR: return "invalid program headers";
         case JOSH_ELF64_ERR_SEGMENT: return "invalid load segment";
