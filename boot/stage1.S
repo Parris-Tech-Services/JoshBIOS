@@ -73,7 +73,7 @@ print_string:
 stage2_packet:
     .byte 0x10
     .byte 0x00
-    .word 32
+    .word 64
     .word 0x8000
     .word 0x0000
     .quad 1
