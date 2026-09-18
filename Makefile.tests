@@ -1,0 +1,62 @@
+# Makefile.tests - host test suites for the Josh boot stack parsers.
+#
+# These run on the build machine, not in QEMU. Filesystem and executable
+# parsers are pure functions of their input, so they can and should be
+# tested without booting anything.
+#
+#   make -f Makefile.tests test
+
+CC       ?= gcc
+BUILD    := build
+CFLAGS   := -std=gnu99 -Wall -Wextra -Wno-unused-parameter -O1 -g
+SAN      := -fsanitize=address,undefined
+
+.PHONY: test test-fat32 test-elf64 images fixtures clean
+
+test: test-fat32 test-elf64
+	@echo
+	@echo "All host test suites passed."
+
+$(BUILD):
+	mkdir -p $(BUILD)
+
+images: | $(BUILD)
+	@bash tests/make-test-image.sh $(BUILD)
+
+# The ELF64 fixture is a real binary from the system linker, not a
+# hand-built byte array, so the loader is checked against output it will
+# actually meet.
+fixtures: | $(BUILD)
+	$(CC) -m64 -ffreestanding -fno-pic -fno-stack-protector -mno-red-zone \
+	      -c tests/fixtures/testkernel.c -o $(BUILD)/testkernel.o
+	ld -T tests/fixtures/testkernel.ld -nostdlib \
+	      $(BUILD)/testkernel.o -o $(BUILD)/testkernel.elf 2>/dev/null
+
+test-fat32: images
+	$(CC) $(CFLAGS) $(SAN) -o $(BUILD)/test_fat32 \
+	      tests/test_fat32.c boot/fat32.c
+	@echo "--- FAT32: superfloppy image ---"
+	@./$(BUILD)/test_fat32 $(BUILD)/test.img $(BUILD)/garbage.img
+	@echo "--- FAT32: MBR-partitioned image ---"
+	@./$(BUILD)/test_fat32 $(BUILD)/test-part.img $(BUILD)/garbage.img
+
+# No ASan here: the loader writes to mmap'd fixed addresses, which ASan
+# reasonably objects to. UBSan alone would also be reasonable.
+test-elf64: fixtures
+	$(CC) $(CFLAGS) -o $(BUILD)/test_elf64 tests/test_elf64.c boot/elf64.c
+	@./$(BUILD)/test_elf64 $(BUILD)/testkernel.elf
+
+# Compile-check the freestanding components that the host suites cannot
+# execute. Not proof they work, only proof they build.
+buildcheck: | $(BUILD)
+	$(CC) -m32 -ffreestanding -fno-pie -fno-stack-protector \
+	      -Wall -Wextra -Werror -O2 -c boot/ata.c    -o $(BUILD)/ata.o
+	$(CC) -m32 -ffreestanding -fno-pie -fno-stack-protector \
+	      -Wall -Wextra -Werror -O2 -c boot/fat32.c  -o $(BUILD)/fat32_32.o
+	$(CC) -m32 -ffreestanding -fno-pie -fno-stack-protector \
+	      -Wall -Wextra -Werror -O2 -c boot/elf64.c  -o $(BUILD)/elf64_32.o
+	$(CC) -m32 -ffreestanding -fno-pie -c boot/longmode.S -o $(BUILD)/longmode.o
+	@echo "freestanding build check OK (builds only, not executed)"
+
+clean:
+	rm -rf $(BUILD)

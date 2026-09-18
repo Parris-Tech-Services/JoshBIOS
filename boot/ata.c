@@ -31,6 +31,7 @@
 #define CMD_READ_PIO48  0x24
 #define CMD_IDENTIFY    0xEC
 
+/* Generous, but finite. Real spinning disks can take seconds to spin up. */
 #define ATA_TIMEOUT     0x02000000u
 
 static inline void outb(uint16_t port, uint8_t val) {
@@ -49,6 +50,9 @@ static inline uint16_t inw(uint16_t port) {
     return r;
 }
 
+/* Reading the alternate status register takes ~100ns and has no side
+ * effects. Four reads is the standard way to get the 400ns settle the
+ * spec requires after a drive select. */
 static void ata_delay400(ata_device *d) {
     int i;
     for (i = 0; i < 4; i++) (void)inb(d->ctrl_base);
@@ -90,11 +94,13 @@ int ata_identify(ata_device *d) {
     ata_delay400(d);
 
     st = inb(d->io_base + ATA_STATUS);
-    if (st == 0) return ATA_E_NO_DEVICE;
+    if (st == 0) return ATA_E_NO_DEVICE;     /* floating bus: nothing there */
 
     rc = ata_wait_not_busy(d);
     if (rc) return rc;
 
+    /* Non-zero LBA_MID/HI here means an ATAPI or SATA device answering
+     * the IDENTIFY as something other than a plain ATA disk. */
     if (inb(d->io_base + ATA_LBA_MID) || inb(d->io_base + ATA_LBA_HI))
         return ATA_E_NOT_ATA;
 
@@ -135,6 +141,8 @@ int ata_read_sectors(ata_device *d, uint64_t lba, uint32_t count, void *buf) {
     if (lba + count > d->sectors64) return ATA_E_RANGE;
 
     while (count > 0) {
+        /* One command can transfer at most 256 sectors (LBA28) because the
+         * sector-count register is 8 bits and 0 means 256. */
         uint32_t chunk = count > 256 ? 256 : count;
         uint32_t s;
         int rc;
@@ -146,6 +154,7 @@ int ata_read_sectors(ata_device *d, uint64_t lba, uint32_t count, void *buf) {
             outb(d->io_base + ATA_DRIVE,
                  (uint8_t)(0x40 | (d->slave << 4)));
             ata_delay400(d);
+            /* LBA48 writes each register twice: high byte first. */
             outb(d->io_base + ATA_SECCOUNT, (uint8_t)((chunk >> 8) & 0xFF));
             outb(d->io_base + ATA_LBA_LO,   (uint8_t)((lba >> 24) & 0xFF));
             outb(d->io_base + ATA_LBA_MID,  (uint8_t)((lba >> 32) & 0xFF));
@@ -169,6 +178,7 @@ int ata_read_sectors(ata_device *d, uint64_t lba, uint32_t count, void *buf) {
             outb(d->io_base + ATA_COMMAND, CMD_READ_PIO);
         }
 
+        /* DRQ is raised once per sector, not once per command. */
         for (s = 0; s < chunk; s++) {
             int i;
             rc = ata_wait_drq(d);
@@ -182,6 +192,7 @@ int ata_read_sectors(ata_device *d, uint64_t lba, uint32_t count, void *buf) {
     return ATA_OK;
 }
 
+/* josh_blockdev adapter, so fat32.c can sit straight on top. */
 static int ata_bdev_read(struct josh_blockdev *dev, uint64_t lba,
                          uint32_t count, void *buf) {
     return ata_read_sectors((ata_device *)dev->ctx, lba, count, buf);

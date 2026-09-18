@@ -66,10 +66,10 @@ static elf64_err read_ehdr(elf64_read_fn read, void *ctx, uint8_t *eh) {
     if (rd16(&eh[16]) != ET_EXEC)   return ELF64_E_NOT_EXEC;
     if (rd16(&eh[18]) != EM_X86_64) return ELF64_E_NOT_X86_64;
 
-    if (rd16(&eh[54]) < PHDR_SIZE) return ELF64_E_BAD_PHDR;
+    if (rd16(&eh[54]) < PHDR_SIZE) return ELF64_E_BAD_PHDR; /* phentsize */
     if (rd16(&eh[56]) == 0)        return ELF64_E_NO_SEGMENTS;
     if (rd16(&eh[56]) > MAX_PHNUM) return ELF64_E_BAD_PHDR;
-    if (rd64(&eh[32]) == 0)        return ELF64_E_BAD_PHDR;
+    if (rd64(&eh[32]) == 0)        return ELF64_E_BAD_PHDR; /* phoff */
 
     return ELF64_OK;
 }
@@ -130,19 +130,26 @@ elf64_err elf64_load(elf64_read_fn read, void *ctx,
         p_filesz = rd64(&ph[32]);
         p_memsz  = rd64(&ph[40]);
 
-        if (p_memsz == 0) continue;
+        if (p_memsz == 0) continue;            /* nothing to do          */
         if (p_filesz > p_memsz) return ELF64_E_BAD_SEGMENT;
 
+        /* Many kernels are linked at a high virtual address with a low
+         * physical one. If p_paddr looks unset, fall back to p_vaddr. */
         if (p_paddr == 0 && p_vaddr != 0) p_paddr = p_vaddr;
 
+        /* Overflow-safe range check. Doing this as
+         * (p_paddr + p_memsz > max_paddr) would wrap on a hostile
+         * header and silently pass. */
         if (p_paddr < min_paddr) return ELF64_E_OUT_OF_RANGE;
         if (p_memsz > max_paddr - p_paddr) return ELF64_E_OUT_OF_RANGE;
         end = p_paddr + p_memsz;
 
         if (p_filesz > 0) {
+            /* Copy in bounded chunks so a huge segment does not need the
+             * read callback to handle an enormous single request. */
             uint64_t done = 0;
             while (done < p_filesz) {
-                uint32_t chunk = 0x10000;
+                uint32_t chunk = 0x10000;   /* 64 KiB */
                 if ((uint64_t)chunk > p_filesz - done)
                     chunk = (uint32_t)(p_filesz - done);
                 if (read(ctx, p_offset + done,
@@ -152,6 +159,9 @@ elf64_err elf64_load(elf64_read_fn read, void *ctx,
             }
         }
 
+        /* .bss and any other memsz-beyond-filesz must be zeroed. Skipping
+         * this is the classic "works in QEMU, fails on metal" bug: QEMU
+         * often hands you zeroed RAM, real machines do not. */
         if (p_memsz > p_filesz)
             zero((void *)(uintptr_t)(p_paddr + p_filesz), p_memsz - p_filesz);
 
