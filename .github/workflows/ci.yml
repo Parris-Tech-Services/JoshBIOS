@@ -8,18 +8,37 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-and-boot:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+
       - name: Build JoshBIOS
         run: make all
+
+      - name: Boot smoke test
+        run: make smoke
+
       - name: Show image layout
         run: |
           file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img
           wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img
+          cat build/boot.log
+
+      - name: Record checksum
+        run: sha256sum build/joshbios.img | tee build/joshbios.img.sha256
+
       - name: Upload boot image
         uses: actions/upload-artifact@v4
         with:
           name: joshbios-image
-          path: build/joshbios.img
+          path: |
+            build/joshbios.img
+            build/joshbios.img.sha256
+          if-no-files-found: error
