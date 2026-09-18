@@ -14,8 +14,6 @@ _start:
     movw $banner, %si
     call print_string
 
-    # Use BIOS Enhanced Disk Drive (EDD) LBA reads rather than CHS geometry
-    # assumptions. Load Stage 2 from LBA 1 to physical address 0x8000.
     call check_edd
     jc edd_error
 
@@ -75,7 +73,7 @@ print_string:
 stage2_packet:
     .byte 0x10
     .byte 0x00
-    .word 16
+    .word 32
     .word 0x8000
     .word 0x0000
     .quad 1

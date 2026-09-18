@@ -5,8 +5,8 @@ HOSTCC ?= cc
 UEFI_CC ?= clang
 UEFI_LD ?= lld-link
 BUILD := build
-STAGE2_SECTORS := 16
-KERNEL_SECTORS := 64
+STAGE2_SECTORS := 32
+KERNEL_SECTORS := 512
 
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
@@ -41,8 +41,14 @@ $(BUILD)/stage1.bin: $(BUILD)/stage1.o
 $(BUILD)/stage2.o: boot/stage2.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/stage2.bin: $(BUILD)/stage2.o
-	$(LD) -m elf_i386 -Ttext 0x8000 --oformat binary -e _start $< -o $@
+$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h | $(BUILD)
+	$(CC) $(CFLAGS) -Iboot -c $< -o $@
+
+$(BUILD)/elf64_pm.o: boot/elf64.c boot/elf64.h | $(BUILD)
+	$(CC) $(CFLAGS) -Iboot -c $< -o $@
+
+$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o
+	$(LD) -m elf_i386 -Ttext 0x8000 --oformat binary -e _start $^ -o $@
 
 $(BUILD)/entry.o: kernel/entry.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
@@ -65,7 +71,7 @@ image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin $(BUILD)/kernel.bin
 	truncate -s 1048576 $(BUILD)/joshbios.img
 	dd if=$(BUILD)/stage1.bin of=$(BUILD)/joshbios.img conv=notrunc status=none
 	dd if=$(BUILD)/stage2.bin of=$(BUILD)/joshbios.img bs=512 seek=1 conv=notrunc status=none
-	dd if=$(BUILD)/kernel.bin of=$(BUILD)/joshbios.img bs=512 seek=17 conv=notrunc status=none
+	dd if=$(BUILD)/kernel.bin of=$(BUILD)/joshbios.img bs=512 seek=33 conv=notrunc status=none
 
 check: image
 	@test $$(wc -c < $(BUILD)/stage1.bin) -eq 512
