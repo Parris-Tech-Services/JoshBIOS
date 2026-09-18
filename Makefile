@@ -37,6 +37,9 @@ $(BUILD)/test_boot_config: tests/test_boot_config.c boot/core/config.h boot/core
 $(BUILD)/test_boot_health: tests/test_boot_health.c boot/core/health.h boot/core/health.c | $(BUILD)
 	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tests/test_boot_health.c boot/core/health.c -o $@
 
+$(BUILD)/josh-healthctl: tools/josh-healthctl.c boot/core/health.h boot/core/health.c | $(BUILD)
+	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tools/josh-healthctl.c boot/core/health.c -o $@
+
 host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_config $(BUILD)/test_boot_health
 	$(BUILD)/test_elf64
 	$(BUILD)/test_boot_storage

@@ -6,6 +6,9 @@
 #define JOSH_BOOT_HEALTH_MAGIC UINT32_C(0x48424a53)
 #define JOSH_BOOT_HEALTH_VERSION 1u
 #define JOSH_BOOT_HEALTH_MAX_ATTEMPTS 3u
+#define JOSH_BOOT_HEALTH_SECTOR_SIZE 512u
+#define JOSH_BOOT_HEALTH_LBA_A UINT64_C(1984)
+#define JOSH_BOOT_HEALTH_LBA_B UINT64_C(1985)
 
 typedef enum {
     JOSH_BOOT_SLOT_CURRENT=0,
@@ -55,4 +58,7 @@ int josh_boot_health_mark_good(josh_boot_health_record_t *record,
                                josh_boot_slot_t slot);
 void josh_boot_health_note_failure(josh_boot_health_record_t *record,
                                    josh_boot_failure_stage_t stage);
+int josh_boot_health_select_fallback(josh_boot_health_record_t *record,
+                                     josh_boot_slot_t slot,
+                                     josh_boot_failure_stage_t stage);
 #endif

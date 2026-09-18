@@ -42,6 +42,13 @@ int main(void) {
     josh_boot_health_seal(&record);
     assert(josh_boot_health_prepare_attempt(&record, 3) == JOSH_BOOT_SLOT_RECOVERY);
 
+    josh_boot_health_default(&record);
+    assert(josh_boot_health_select_fallback(
+        &record, JOSH_BOOT_SLOT_RECOVERY, JOSH_BOOT_FAILURE_KERNEL_FILE));
+    assert(record.selected_slot == JOSH_BOOT_SLOT_RECOVERY);
+    assert(record.last_failure_stage == JOSH_BOOT_FAILURE_KERNEL_FILE);
+    assert(record.pending_good == 0);
+
     puts("JoshBootloader boot-health tests passed");
     return 0;
 }

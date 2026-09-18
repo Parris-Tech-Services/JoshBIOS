@@ -144,3 +144,21 @@ void josh_boot_health_note_failure(
     record->last_failure_stage = (uint32_t)stage;
     josh_boot_health_seal(record);
 }
+
+int josh_boot_health_select_fallback(
+    josh_boot_health_record_t *record,
+    josh_boot_slot_t slot,
+    josh_boot_failure_stage_t stage
+) {
+    if (!record || !josh_boot_health_valid(record) ||
+        !slot_valid(slot) || stage > JOSH_BOOT_FAILURE_DESKTOP) {
+        return 0;
+    }
+    record->generation++;
+    record->selected_slot = slot;
+    record->pending_good = 0u;
+    record->attempt_count = 0u;
+    record->last_failure_stage = (uint32_t)stage;
+    josh_boot_health_seal(record);
+    return 1;
+}
