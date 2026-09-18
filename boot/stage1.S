@@ -14,24 +14,48 @@ _start:
     movw $banner, %si
     call print_string
 
-    # Load stage 2: 16 sectors beginning at LBA/CHS sector 2.
-    movb $0x02, %ah
-    movb $16, %al
-    movb $0x00, %ch
-    movb $0x02, %cl
-    movb $0x00, %dh
+    # Use BIOS Enhanced Disk Drive (EDD) LBA reads rather than CHS geometry
+    # assumptions. Load Stage 2 from LBA 1 to physical address 0x8000.
+    call check_edd
+    jc edd_error
+
+    movw $stage2_packet, %si
     movb boot_drive, %dl
-    movw $0x8000, %bx
+    movb $0x42, %ah
     int $0x13
     jc disk_error
 
+    movb boot_drive, %dl
     ljmp $0x0000, $0x8000
+
+check_edd:
+    movb boot_drive, %dl
+    movw $0x55aa, %bx
+    movb $0x41, %ah
+    int $0x13
+    jc 1f
+    cmpw $0xaa55, %bx
+    jne 1f
+    testw $0x0001, %cx
+    jz 1f
+    clc
+    ret
+1:
+    stc
+    ret
+
+edd_error:
+    movw $edd_msg, %si
+    call print_string
+    jmp halt
 
 disk_error:
     movw $disk_msg, %si
     call print_string
-1:
+
+halt:
     cli
+1:
     hlt
     jmp 1b
 
@@ -47,10 +71,21 @@ print_string:
 2:
     ret
 
+.align 4
+stage2_packet:
+    .byte 0x10
+    .byte 0x00
+    .word 16
+    .word 0x8000
+    .word 0x0000
+    .quad 1
+
 banner:
     .asciz "JoshBIOS stage 1\r\n"
+edd_msg:
+    .asciz "BIOS EDD unavailable\r\n"
 disk_msg:
-    .asciz "Disk read failed\r\n"
+    .asciz "Stage 2 read failed\r\n"
 boot_drive:
     .byte 0
 
