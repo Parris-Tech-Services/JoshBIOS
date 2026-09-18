@@ -12,6 +12,7 @@ BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
 BAD_CONFIG_IMAGE := $(BUILD)/joshbios-bad-config.img
 ROLLBACK_IMAGE := $(BUILD)/joshbios-rollback.img
 RECOVERY_IMAGE := $(BUILD)/joshbios-recovery.img
+UEFI_RECOVERY_IMAGE := $(BUILD)/joshuefi-recovery.img
 
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
@@ -21,7 +22,7 @@ UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wch
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
 
-.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke bridge-config-fail-smoke bridge-rollback-smoke bridge-recovery-smoke uefi uefi-image uefi-smoke
+.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke bridge-config-fail-smoke bridge-rollback-smoke bridge-recovery-smoke uefi uefi-image uefi-smoke uefi-recovery-smoke
 all: image check
 
 $(BUILD):
@@ -302,6 +303,30 @@ uefi-smoke: uefi-image
 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/uefi.log; \
 	  grep -q JOSHOS_BOOT_OK $(BUILD)/uefi.log; \
 	  echo "JoshUEFI -> AshFallen OVMF boot smoke test passed."
+
+uefi-recovery-smoke: uefi-image
+	@test -n "$(OVMF_CODE)" || { echo "OVMF code image not found"; exit 1; }
+	@test -n "$(OVMF_VARS)" || { echo "OVMF vars image not found"; exit 1; }
+	cp $(BUILD)/joshuefi.img $(UEFI_RECOVERY_IMAGE)
+	mdel -i $(UEFI_RECOVERY_IMAGE) ::/EFI/JOSH/KERNEL.ELF
+	mdel -i $(UEFI_RECOVERY_IMAGE) ::/EFI/JOSH/KERNEL-PREV.ELF
+	@cp "$(OVMF_VARS)" $(BUILD)/OVMF_RECOVERY_VARS.fd
+	@rm -f $(BUILD)/uefi-recovery.log; \
+	  status=0; \
+	  timeout 20s qemu-system-x86_64 \
+	    -machine q35 -m 256M \
+	    -drive if=pflash,format=raw,readonly=on,file="$(OVMF_CODE)" \
+	    -drive if=pflash,format=raw,file=$(BUILD)/OVMF_RECOVERY_VARS.fd \
+	    -drive format=raw,file=$(UEFI_RECOVERY_IMAGE) \
+	    -display none -serial stdio -monitor none -no-reboot \
+	    > $(BUILD)/uefi-recovery.log 2>&1 || status=$$?; \
+	  test $$status -eq 0 -o $$status -eq 124; \
+	  grep -q JOSHUEFI_FALLBACK_PREVIOUS $(BUILD)/uefi-recovery.log; \
+	  grep -q JOSHUEFI_FALLBACK_RECOVERY $(BUILD)/uefi-recovery.log; \
+	  grep -q JOSHUEFI_SLOT_RECOVERY $(BUILD)/uefi-recovery.log; \
+	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/uefi-recovery.log; \
+	  grep -q JOSHOS_BOOT_OK $(BUILD)/uefi-recovery.log; \
+	  echo "JoshUEFI recovery-kernel fallback smoke test passed."
 
 clean:
 	rm -rf $(BUILD)

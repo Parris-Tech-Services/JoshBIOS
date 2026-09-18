@@ -57,6 +57,9 @@ jobs:
       - name: UEFI OVMF boot smoke test
         run: make uefi-smoke
 
+      - name: UEFI recovery fallback smoke test
+        run: make uefi-recovery-smoke
+
       - name: Show image layout and boot evidence
         run: |
           file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img build/joshbios-ashfallen.img build/BOOTX64.EFI build/joshuefi.img
@@ -64,6 +67,7 @@ jobs:
           cat build/bridge.log
           cat build/boot.log
           cat build/uefi.log
+          cat build/uefi-recovery.log
 
       - name: Record checksums
         run: |
@@ -100,4 +104,5 @@ jobs:
             build/BOOTX64.EFI.sha256
             build/joshuefi.img
             build/joshuefi.img.sha256
+            build/uefi-recovery.log
           if-no-files-found: error
