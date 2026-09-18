@@ -399,3 +399,49 @@ JoshBootloader v0.x becomes meaningfully integrated when it can:
 9. repeat this in CI.
 
 After that, add the UEFI adapter and broaden recovery/security.
+
+
+---
+
+# Active implementation checkpoint — 18 Sep 2026
+
+This section is a recovery checkpoint for concurrent coding agents. It records only code that currently exists on `main`.
+
+## Implemented and pushed
+
+- Josh Boot Protocol v0 layout exists in `boot/protocol.h`.
+- Strict host-testable ELF64 parser exists in `boot/elf64.c` and `boot/elf64.h`.
+- Malformed ELF64 tests exist in `tests/test_elf64.c`.
+- `make host-tests` builds/runs the parser tests.
+- GitHub CI invokes `make host-tests`.
+- `boot/stage2_pm.c` now contains a protected-mode integration planner that:
+  - detects the preloaded ELF64 image;
+  - validates and copies PT_LOAD segments;
+  - zeros BSS;
+  - constructs Josh Boot Protocol v0 data;
+  - consumes BIOS-provided E820/VBE buffers;
+  - scans for ACPI RSDP and SMBIOS;
+  - creates bootstrap identity + higher-half page tables;
+  - prepares the canonical AshFallen entry address;
+  - calls an external `enter_long_mode()` hand-off routine.
+
+## Important limitation
+
+The current working Stage1/Stage2 path has **not yet been switched** to the new ELF64/long-mode path. The existing 32-bit test payload remains the active boot target, so the new `stage2_pm.c` integration code is presently dormant.
+
+Do not claim that JoshBootloader boots AshFallen yet.
+
+## Exact next atomic change
+
+Update Stage1/Stage2/Makefile together so that:
+
+1. Stage1 reserves enough sectors for the larger Stage2 image.
+2. Stage2 uses BIOS EDD to preload the canonical AshFallen ELF64 image into the agreed temporary physical buffer.
+3. Stage2 captures E820 into the buffer consumed by `stage2_pm.c`.
+4. Stage2 obtains a VBE linear framebuffer mode and fills the VBE buffer consumed by `stage2_pm.c`.
+5. The 32-bit Stage2 build links `stage2_pm.c` and `elf64.c`.
+6. Add `enter_long_mode` assembly that enables PAE, EFER.LME and paging, loads a 64-bit GDT, establishes a known stack/register contract, and jumps to `stage2_kernel_entry`.
+7. Build the integration image using the real AshFallen `kernel/bin/kernel`.
+8. QEMU must reach AshFallen's existing `JOSHOS_BOOT_OK` serial marker before this milestone is called integrated.
+
+Keep Limine working as the reference path throughout.
