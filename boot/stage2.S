@@ -4,11 +4,12 @@
 .global enter_long_mode
 .global e820_count
 .global boot_drive
+.global gdt_descriptor
 .extern stage2_pm_main
 .extern stage2_kernel_entry
 
 .equ BOOT_TIMEOUT_TICKS, 55
-.equ KERNEL_LBA, 33
+.equ KERNEL_LBA, 65
 .equ KERNEL_CHUNKS, 8
 .equ KERNEL_SEGMENT_START, 0x1000
 .equ E820_SEGMENT, 0x5900
@@ -35,16 +36,22 @@ boot_kernel:
 
     call check_edd
     jc edd_error
+
+    # A partitioned disk uses the filesystem-backed protected-mode loader.
+    # The unpartitioned development image keeps the fixed-extent 32-bit
+    # regression payload so the tiny boot-stack test remains useful.
+    call has_boot_partition
+    jnc prepare_native_platform
+
     call load_kernel_extent
     jc disk_error
 
-    # The existing 32-bit test kernel remains a fallback. Only the ELF64 path
-    # needs platform discovery and the long-mode hand-off.
     movw $0x1000, %ax
     movw %ax, %es
     cmpl $0x464c457f, %es:0
     jne enter_protected_mode
 
+prepare_native_platform:
     xorw %ax, %ax
     movw %ax, %es
     call collect_e820
@@ -64,6 +71,22 @@ enter_protected_mode:
     orl $0x1, %eax
     movl %eax, %cr0
     ljmpl $0x08, $protected_mode
+
+has_boot_partition:
+    # Stage 1 remains resident at 0x7c00. Inspect the first MBR partition
+    # type byte (entry 0 + 4) without needing another BIOS read.
+    movb 0x7dc2, %al
+    cmpb $0x0b, %al
+    je 1f
+    cmpb $0x0c, %al
+    je 1f
+    cmpb $0xee, %al
+    je 1f
+    stc
+    ret
+1:
+    clc
+    ret
 
 load_kernel_extent:
     movw $KERNEL_SEGMENT_START, kernel_segment
@@ -353,13 +376,17 @@ gdt:
     .quad 0x00cf9a000000ffff
     .quad 0x00cf92000000ffff
     .quad 0x00af9a000000ffff
+    # 16-bit protected-mode descriptors used by the BIOS EDD thunk while
+    # transitioning safely back to real mode for INT 13h.
+    .quad 0x00009a000000ffff
+    .quad 0x000092000000ffff
 gdt_end:
 gdt_descriptor:
     .word gdt_end - gdt - 1
     .long gdt
 
 banner:
-    .asciz "JoshBIOS Boot Manager 0.3\r\n=========================\r\n\r\n"
+    .asciz "JoshBIOS Boot Manager 0.4\r\n=========================\r\n\r\n"
 menu:
     .asciz "[Enter/B] Boot Josh kernel\r\n[D] Diagnostics\r\n[R] Reboot\r\n\r\nAuto-booting in about 3 seconds...\r\n"
 booting_msg: .asciz "Starting Josh kernel...\r\n"
