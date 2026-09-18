@@ -1,6 +1,7 @@
 CC ?= gcc
 LD ?= ld
 OBJCOPY ?= objcopy
+HOSTCC ?= cc
 UEFI_CC ?= clang
 UEFI_LD ?= lld-link
 BUILD := build
@@ -14,11 +15,17 @@ UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wch
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
 
-.PHONY: all clean image check run smoke uefi uefi-image uefi-smoke
+.PHONY: all clean image check run smoke host-tests uefi uefi-image uefi-smoke
 all: image check
 
 $(BUILD):
 	mkdir -p $(BUILD)
+
+$(BUILD)/test_elf64: tests/test_elf64.c boot/elf64.c boot/elf64.h | $(BUILD)
+	$(HOSTCC) -std=c11 -O2 -Wall -Wextra -Werror -Iboot tests/test_elf64.c boot/elf64.c -o $@
+
+host-tests: $(BUILD)/test_elf64
+	$(BUILD)/test_elf64
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
@@ -48,10 +55,8 @@ $(BUILD)/kernel.bin: $(BUILD)/kernel.elf
 	$(OBJCOPY) -O binary $< $@
 
 image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin $(BUILD)/kernel.bin
-	@stage2_size=$$(wc -c < $(BUILD)/stage2.bin); max=$$(( $(STAGE2_SECTORS) * 512 )); \
-	  test $$stage2_size -le $$max || { echo "stage2 too large: $$stage2_size > $$max"; exit 1; }
-	@kernel_size=$$(wc -c < $(BUILD)/kernel.bin); max=$$(( $(KERNEL_SECTORS) * 512 )); \
-	  test $$kernel_size -le $$max || { echo "kernel too large: $$kernel_size > $$max"; exit 1; }
+	@stage2_size=$$(wc -c < $(BUILD)/stage2.bin); max=$$(( $(STAGE2_SECTORS) * 512 )); 	  test $$stage2_size -le $$max || { echo "stage2 too large: $$stage2_size > $$max"; exit 1; }
+	@kernel_size=$$(wc -c < $(BUILD)/kernel.bin); max=$$(( $(KERNEL_SECTORS) * 512 )); 	  test $$kernel_size -le $$max || { echo "kernel too large: $$kernel_size > $$max"; exit 1; }
 	truncate -s 1048576 $(BUILD)/joshbios.img
 	dd if=$(BUILD)/stage1.bin of=$(BUILD)/joshbios.img conv=notrunc status=none
 	dd if=$(BUILD)/stage2.bin of=$(BUILD)/joshbios.img bs=512 seek=1 conv=notrunc status=none
@@ -66,16 +71,7 @@ run: all
 	qemu-system-i386 -drive format=raw,file=$(BUILD)/joshbios.img
 
 smoke: all
-	@rm -f $(BUILD)/boot.log; \
-	  status=0; \
-	  timeout 10s qemu-system-i386 \
-	    -drive format=raw,file=$(BUILD)/joshbios.img \
-	    -display none -serial stdio -monitor none -no-reboot \
-	    > $(BUILD)/boot.log 2>&1 || status=$$?; \
-	  test $$status -eq 0 -o $$status -eq 124; \
-	  grep -q JOSHBIOS_BOOTINFO_OK $(BUILD)/boot.log; \
-	  grep -q JOSHBIOS_BOOT_OK $(BUILD)/boot.log; \
-	  echo "JoshBIOS QEMU boot smoke test passed."
+	@rm -f $(BUILD)/boot.log; 	  status=0; 	  timeout 10s qemu-system-i386 	    -drive format=raw,file=$(BUILD)/joshbios.img 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/boot.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBIOS_BOOTINFO_OK $(BUILD)/boot.log; 	  grep -q JOSHBIOS_BOOT_OK $(BUILD)/boot.log; 	  echo "JoshBIOS QEMU boot smoke test passed."
 
 $(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
@@ -101,18 +97,7 @@ uefi-smoke: uefi-image
 	@test -n "$(OVMF_CODE)" || { echo "OVMF code image not found"; exit 1; }
 	@test -n "$(OVMF_VARS)" || { echo "OVMF vars image not found"; exit 1; }
 	@cp "$(OVMF_VARS)" $(BUILD)/OVMF_VARS.fd
-	@rm -f $(BUILD)/uefi.log; \
-	  status=0; \
-	  timeout 15s qemu-system-x86_64 \
-	    -machine q35 \
-	    -drive if=pflash,format=raw,readonly=on,file="$(OVMF_CODE)" \
-	    -drive if=pflash,format=raw,file=$(BUILD)/OVMF_VARS.fd \
-	    -drive format=raw,file=$(BUILD)/joshuefi.img \
-	    -display none -serial stdio -monitor none -no-reboot \
-	    > $(BUILD)/uefi.log 2>&1 || status=$$?; \
-	  test $$status -eq 0 -o $$status -eq 124; \
-	  grep -q JOSHUEFI_ENTRY_OK $(BUILD)/uefi.log; \
-	  echo "JoshUEFI OVMF boot smoke test passed."
+	@rm -f $(BUILD)/uefi.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine q35 	    -drive if=pflash,format=raw,readonly=on,file="$(OVMF_CODE)" 	    -drive if=pflash,format=raw,file=$(BUILD)/OVMF_VARS.fd 	    -drive format=raw,file=$(BUILD)/joshuefi.img 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/uefi.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHUEFI_ENTRY_OK $(BUILD)/uefi.log; 	  echo "JoshUEFI OVMF boot smoke test passed."
 
 clean:
 	rm -rf $(BUILD)
