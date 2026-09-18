@@ -11,7 +11,7 @@ This repository owns the **JoshBIOS / firmware / bootloader research stack**.
 Related repositories:
 
 - **Canonical Josh OS:** [joshuaparris-max/AshFallen](https://github.com/joshuaparris-max/AshFallen) — product track plus the independent x86-64 Josh kernel.
-- **Stage 0 desktop/ISO extraction:** [Parris-Tech-Services/transfer2](https://github.com/Parris-Tech-Services/transfer2) — browser shell + ArchISO compatibility image.
+- **Stage 0 desktop/ISO extraction:** [Parris-Tech-Services/JoshOS-Stage0](https://github.com/Parris-Tech-Services/JoshOS-Stage0) — browser shell + ArchISO compatibility image.
 
 Within this repository:
 
