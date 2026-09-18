@@ -9,6 +9,7 @@ STAGE2_SECTORS := 32
 KERNEL_SECTORS := 512
 ASHFALLEN_KERNEL ?= ashfallen/kernel/bin/kernel
 BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
+FAT32_BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen-fat32.img
 
 CFLAGS := -m32 -ffreestanding -fno-builtin -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
@@ -19,7 +20,7 @@ BOOT_CPPFLAGS := -Iboot -Iboot/core
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
 
-.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke uefi uefi-image uefi-smoke
+.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke fat32-bridge-image fat32-bridge-smoke uefi uefi-image uefi-smoke
 all: image check
 
 $(BUILD):
@@ -112,6 +113,28 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 
 bridge-smoke: bridge-image
 	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader -> AshFallen QEMU bridge smoke test passed."
+
+fat32-bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
+	@test -f "$(ASHFALLEN_KERNEL)" || { echo "AshFallen kernel not found: $(ASHFALLEN_KERNEL)"; exit 1; }
+	bash scripts/build-fat32-bridge.sh $(FAT32_BRIDGE_IMAGE) $(BUILD)/stage1.bin $(BUILD)/stage2.bin "$(ASHFALLEN_KERNEL)"
+
+fat32-bridge-smoke: fat32-bridge-image
+	@rm -f $(BUILD)/fat32-bridge.log; \
+	  status=0; \
+	  timeout 20s qemu-system-x86_64 \
+	    -machine pc -m 256M \
+	    -drive format=raw,file=$(FAT32_BRIDGE_IMAGE) \
+	    -display none -serial stdio -monitor none -no-reboot \
+	    > $(BUILD)/fat32-bridge.log 2>&1 || status=$?; \
+	  test $status -eq 0 -o $status -eq 124; \
+	  grep -q JOSHBOOT_FAT32_KERNEL_OK $(BUILD)/fat32-bridge.log; \
+	  ! grep -q JOSHBOOT_NO_ELF64_USING_LEGACY_FALLBACK $(BUILD)/fat32-bridge.log; \
+	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/fat32-bridge.log; \
+	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/fat32-bridge.log; \
+	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/fat32-bridge.log; \
+	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/fat32-bridge.log; \
+	  grep -q JOSHOS_BOOT_OK $(BUILD)/fat32-bridge.log; \
+	  echo "FAT32 -> JoshBootloader -> AshFallen QEMU smoke test passed."
 
 $(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
