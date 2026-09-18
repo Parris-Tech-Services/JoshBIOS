@@ -10,10 +10,11 @@ KERNEL_SECTORS := 512
 ASHFALLEN_KERNEL ?= ashfallen/kernel/bin/kernel
 BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
 
-CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
+CFLAGS := -m32 -ffreestanding -fno-builtin -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
 HOST_CFLAGS := -std=c11 -O2 -Wall -Wextra -Werror
 UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wchar -mno-red-zone -fno-stack-protector -Wall -Wextra -Werror -O2
+BOOT_CPPFLAGS := -Iboot -Iboot/core
 
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
@@ -43,13 +44,27 @@ $(BUILD)/stage1.bin: $(BUILD)/stage1.o
 $(BUILD)/stage2.o: boot/stage2.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
 
-$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h | $(BUILD)
-	$(CC) $(CFLAGS) -Iboot -c $< -o $@
+$(BUILD)/bios_block.o: boot/bios_block.S | $(BUILD)
+	$(CC) $(ASFLAGS) -c $< -o $@
+
+$(BUILD)/stage2_pm.o: boot/stage2_pm.c boot/elf64.h boot/protocol.h boot/core/block.h boot/core/partition.h boot/core/fat32.h | $(BUILD)
+	$(CC) $(CFLAGS) $(BOOT_CPPFLAGS) -c $< -o $@
 
 $(BUILD)/elf64_pm.o: boot/elf64.c boot/elf64.h | $(BUILD)
-	$(CC) $(CFLAGS) -Iboot -c $< -o $@
+	$(CC) $(CFLAGS) $(BOOT_CPPFLAGS) -c $< -o $@
 
-$(BUILD)/stage2.bin: $(BUILD)/stage2.o $(BUILD)/stage2_pm.o $(BUILD)/elf64_pm.o
+$(BUILD)/partition_pm.o: boot/core/partition.c boot/core/partition.h boot/core/block.h | $(BUILD)
+	$(CC) $(CFLAGS) $(BOOT_CPPFLAGS) -c $< -o $@
+
+$(BUILD)/fat32_pm.o: boot/core/fat32.c boot/core/fat32.h boot/core/block.h boot/core/partition.h | $(BUILD)
+	$(CC) $(CFLAGS) $(BOOT_CPPFLAGS) -c $< -o $@
+
+$(BUILD)/runtime32.o: boot/runtime32.c | $(BUILD)
+	$(CC) $(CFLAGS) $(BOOT_CPPFLAGS) -c $< -o $@
+
+STAGE2_OBJECTS := 	$(BUILD)/stage2.o 	$(BUILD)/bios_block.o 	$(BUILD)/stage2_pm.o 	$(BUILD)/elf64_pm.o 	$(BUILD)/partition_pm.o 	$(BUILD)/fat32_pm.o 	$(BUILD)/runtime32.o
+
+$(BUILD)/stage2.bin: $(STAGE2_OBJECTS)
 	$(LD) -m elf_i386 -Ttext 0x8000 --oformat binary -e _start $^ -o $@
 
 $(BUILD)/entry.o: kernel/entry.S | $(BUILD)
