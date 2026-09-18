@@ -12,6 +12,19 @@ JoshBootloader must not make the kernel depend on BIOS, UEFI, coreboot or any on
 
 Firmware-specific information is converted into a common versioned structure before kernel entry.
 
+## Current UEFI scaffold
+
+As of 18 September 2026, the UEFI path has crossed its first executable milestone:
+
+- `boot/uefi/main.c` builds as an x86-64 PE32+ EFI application;
+- the build creates a FAT removable-media image containing `EFI/BOOT/BOOTX64.EFI`;
+- GitHub Actions boots that image under QEMU/OVMF;
+- the test requires the serial marker `JOSHUEFI_ENTRY_OK`.
+
+Status: **tested scaffold**.
+
+This does not yet mean JoshBootloader can boot Josh OS through UEFI. GOP discovery, `GetMemoryMap`, ACPI/SMBIOS table capture, filesystem/kernel loading, `ExitBootServices`, Josh Boot Protocol construction and AshFallen kernel entry are still unimplemented on this path.
+
 ## Bootloader implementation modules
 
 Target conceptual split:

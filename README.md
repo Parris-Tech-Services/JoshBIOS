@@ -20,7 +20,7 @@ Within this repository:
 - [`kernel/`](./kernel) is a **small boot-stack test kernel/payload**, not the canonical Josh OS kernel
 
 ```text
-today:
+legacy BIOS path today:
 
 platform BIOS / SeaBIOS
         ↓
@@ -29,6 +29,16 @@ JoshBIOS Stage 1
 JoshBootloader Stage 2
         ↓
 JoshBIOS test kernel
+
+UEFI scaffold today:
+
+UEFI / QEMU OVMF
+        ↓
+EFI/BOOT/BOOTX64.EFI
+        ↓
+Josh-owned x86-64 UEFI entry
+        ↓
+serial proof: JOSHUEFI_ENTRY_OK
 
 canonical Josh OS native path:
 
@@ -77,16 +87,20 @@ PC reset
   -> serial boot proof + direct VGA output
 ```
 
-No GRUB. No Linux kernel. No operating-system runtime. The bootloader and test payload are ours, and CI now proves the image actually reaches its boot-success marker in QEMU.
+No GRUB. No Linux kernel. No operating-system runtime. The legacy bootloader and test payload are ours, and CI proves that image reaches its boot-success marker in QEMU.
+
+The UEFI path is now **tested scaffolding**, not a kernel boot path: CI builds a real x86-64 PE32+ `BOOTX64.EFI`, places it at the standard removable-media path on a FAT image, boots it under QEMU/OVMF, and requires the `JOSHUEFI_ENTRY_OK` serial marker. It does **not** yet discover GOP, capture the UEFI memory map, call `ExitBootServices`, load ELF64, construct the full Josh Boot Protocol, or enter AshFallen.
 
 ## Build
 
 Requirements on a Debian/Ubuntu-style system:
 
 ```bash
-sudo apt install build-essential binutils qemu-system-x86
+sudo apt install build-essential binutils qemu-system-x86 clang lld mtools ovmf
 make
 make run
+make uefi-image
+make uefi-smoke
 ```
 
 `make` produces:
