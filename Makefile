@@ -9,6 +9,7 @@ STAGE2_SECTORS := 64
 KERNEL_SECTORS := 512
 ASHFALLEN_KERNEL ?= ashfallen/kernel/bin/kernel
 BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
+BAD_CONFIG_IMAGE := $(BUILD)/joshbios-bad-config.img
 
 CFLAGS := -m32 -ffreestanding -fno-pie -fno-stack-protector -fno-asynchronous-unwind-tables -fno-unwind-tables -Wall -Wextra -Werror -O2
 ASFLAGS := -m32 -ffreestanding -fno-pie
@@ -18,7 +19,7 @@ UEFI_CFLAGS := --target=x86_64-pc-win32-coff -std=c11 -ffreestanding -fshort-wch
 OVMF_CODE ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd))
 OVMF_VARS ?= $(firstword $(wildcard /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd))
 
-.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke uefi uefi-image uefi-smoke
+.PHONY: all clean image check run smoke host-tests bridge-image bridge-smoke bridge-config-fail-smoke uefi uefi-image uefi-smoke
 all: image check
 
 $(BUILD):
@@ -130,6 +131,29 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin
 
 bridge-smoke: bridge-image
 	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_CPU_LONG_MODE_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_PARTITION_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_FAT32_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_CONFIG_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_PATH_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_FILE_LOADED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_RSDP_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_SMBIOS_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader FAT32 -> AshFallen QEMU bridge smoke test passed."
+
+bridge-config-fail-smoke: bridge-image
+	cp $(BRIDGE_IMAGE) $(BAD_CONFIG_IMAGE)
+	printf '%s\n' \
+		'version=99' \
+		'default=josh' \
+		'timeout=3' \
+		'entry=josh' \
+		'name=Josh OS' \
+		'kernel=/boot/josh/kernel.elf' > $(BUILD)/BAD.CFG
+	mcopy -o -i "$(BAD_CONFIG_IMAGE)@@1048576" $(BUILD)/BAD.CFG ::/BOOT/JOSH/BOOT.CFG
+	@rm -f $(BUILD)/bad-config.log; \
+	  status=0; \
+	  timeout 10s qemu-system-x86_64 \
+	    -machine pc -m 256M \
+	    -drive format=raw,file=$(BAD_CONFIG_IMAGE) \
+	    -display none -serial stdio -monitor none -no-reboot \
+	    > $(BUILD)/bad-config.log 2>&1 || status=$?; \
+	  test $status -eq 0 -o $status -eq 124; \
+	  grep -q JOSHBOOT_ERROR_CONFIG_PARSE $(BUILD)/bad-config.log; \
+	  grep -q JOSHBOOT_ERROR_FILESYSTEM_LOAD $(BUILD)/bad-config.log; \
+	  ! grep -q JOSHOS_BOOT_OK $(BUILD)/bad-config.log; \
+	  echo "JoshBootloader malformed-config QEMU smoke test passed."
 
 $(BUILD)/uefi_main.obj: boot/uefi/main.c boot/uefi/efi.h | $(BUILD)
 	$(UEFI_CC) $(UEFI_CFLAGS) -c $< -o $@
