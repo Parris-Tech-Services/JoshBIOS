@@ -87,5 +87,6 @@ disk_msg:
 boot_drive:
     .byte 0
 
-.org 510
+.org 446
+.space 64
 .word 0xaa55
