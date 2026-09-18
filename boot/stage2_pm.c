@@ -3,10 +3,11 @@
 #include "core/block.h"
 #include "core/partition.h"
 #include "core/fat32.h"
+#include "core/config.h"
 
 #define KERNEL_IMAGE_ADDR 0x00010000u
 #define KERNEL_IMAGE_BYTES (512u * 512u)
-#define KERNEL_PATH "/boot/josh/kernel.elf"
+#define CONFIG_PATH "/boot/josh/boot.cfg"
 #define BIOS_DEVICE_SECTORS 0x100000000ULL
 
 #define KERNEL_VIRT_BASE 0xffffffff80000000ULL
@@ -23,6 +24,7 @@
 #define MEMORY_MAP_ADDR 0x00059000u
 #define VBE_INFO_ADDR 0x0005a000u
 #define LOADER_NAME_ADDR 0x0005b000u
+#define CMDLINE_ADDR 0x0005c000u
 
 #define PAGE_PRESENT 0x001ULL
 #define PAGE_RW 0x002ULL
@@ -152,6 +154,13 @@ static int bytes_equal(
     return 1;
 }
 
+static unsigned int text_length(const char *text) {
+    unsigned int length = 0;
+    if (!text) return 0;
+    while (text[length]) ++length;
+    return length;
+}
+
 static unsigned char checksum(
     const unsigned char *memory,
     unsigned int length
@@ -214,8 +223,8 @@ static unsigned long long find_smbios(void) {
     return 0;
 }
 
-static int load_kernel_file(unsigned int *image_bytes) {
-    if (!image_bytes) return -1;
+static int load_kernel_file(unsigned int *image_bytes, josh_boot_config_t *config) {
+    if (!image_bytes || !config) return -1;
 
     josh_block_device_t device;
     device.context = 0;
@@ -236,8 +245,39 @@ static int load_kernel_file(unsigned int *image_bytes) {
     }
     serial_write("JOSHBOOT_FAT32_OK\n");
 
+    josh_fat32_file_t config_file;
+    if (josh_fat32_open_path(&filesystem, CONFIG_PATH, &config_file) != JOSH_FAT32_OK) {
+        serial_write("JOSHBOOT_ERROR_CONFIG_PATH\n");
+        return -1;
+    }
+    if (config_file.size == 0 || config_file.size > JOSH_BOOT_CONFIG_MAX_BYTES) {
+        serial_write("JOSHBOOT_ERROR_CONFIG_SIZE\n");
+        return -1;
+    }
+
+    char config_buffer[JOSH_BOOT_CONFIG_MAX_BYTES];
+    unsigned int config_bytes = 0;
+    if (josh_fat32_read_file(
+            &filesystem,
+            &config_file,
+            0,
+            config_buffer,
+            config_file.size,
+            &config_bytes
+        ) != JOSH_FAT32_OK ||
+        config_bytes != config_file.size) {
+        serial_write("JOSHBOOT_ERROR_CONFIG_READ\n");
+        return -1;
+    }
+
+    if (josh_boot_config_parse(config_buffer, config_bytes, config) != JOSH_CONFIG_OK) {
+        serial_write("JOSHBOOT_ERROR_CONFIG_PARSE\n");
+        return -1;
+    }
+    serial_write("JOSHBOOT_CONFIG_OK\n");
+
     josh_fat32_file_t kernel;
-    if (josh_fat32_open_path(&filesystem, KERNEL_PATH, &kernel) != JOSH_FAT32_OK) {
+    if (josh_fat32_open_path(&filesystem, config->kernel_path, &kernel) != JOSH_FAT32_OK) {
         serial_write("JOSHBOOT_ERROR_KERNEL_PATH\n");
         return -1;
     }
@@ -362,7 +402,7 @@ static int load_elf(JoshElf64Summary *summary, unsigned int image_bytes) {
     return 0;
 }
 
-static void fill_boot_info(const JoshElf64Summary *summary) {
+static void fill_boot_info(const JoshElf64Summary *summary, const josh_boot_config_t *config) {
     JoshBootInfo *info = (JoshBootInfo *)BOOTINFO_ADDR;
     memzero(info, sizeof(*info));
 
@@ -414,6 +454,14 @@ static void fill_boot_info(const JoshElf64Summary *summary) {
     info->smbios_phys = find_smbios();
     if (info->smbios_phys) info->flags |= JOSH_BOOT_FLAG_SMBIOS;
 
+    if (config && config->command_line[0] != '\0') {
+        unsigned int command_line_length = text_length(config->command_line);
+        memcopy((void *)CMDLINE_ADDR, config->command_line, command_line_length);
+        info->command_line_address = CMDLINE_ADDR;
+        info->command_line_length = command_line_length;
+        info->flags |= JOSH_BOOT_FLAG_CMDLINE;
+    }
+
     const char name[] = "JoshBootloader BIOS";
     memcopy((void *)LOADER_NAME_ADDR, name, sizeof(name) - 1);
     info->bootloader_name_address = LOADER_NAME_ADDR;
@@ -423,6 +471,8 @@ static void fill_boot_info(const JoshElf64Summary *summary) {
 int stage2_pm_main(void) {
     unsigned char *image = (unsigned char *)KERNEL_IMAGE_ADDR;
     unsigned int image_bytes = KERNEL_IMAGE_BYTES;
+    josh_boot_config_t boot_config;
+    josh_boot_config_t *active_config = 0;
 
     serial_init();
 
@@ -439,10 +489,12 @@ int stage2_pm_main(void) {
         }
 
         serial_write("JOSHBOOT_FS_LOAD_BEGIN\n");
-        if (load_kernel_file(&image_bytes) != 0) {
+        if (load_kernel_file(&image_bytes, &boot_config) != 0) {
             serial_write("JOSHBOOT_ERROR_FILESYSTEM_LOAD\n");
             for (;;) __asm__ volatile ("cli; hlt");
         }
+
+        active_config = &boot_config;
 
         if (image[0] != 0x7f || image[1] != 'E' ||
             image[2] != 'L' || image[3] != 'F') {
@@ -459,7 +511,7 @@ int stage2_pm_main(void) {
         for (;;) __asm__ volatile ("cli; hlt");
     }
 
-    fill_boot_info(&summary);
+    fill_boot_info(&summary, active_config);
     build_page_tables();
     stage2_kernel_entry = summary.entry;
 
