@@ -97,6 +97,63 @@ Until that works, Limine remains the reference boot path. Do not fork the canoni
 
 Target-specific work should still use clean subsystem boundaries. A Compaq-specific quirk belongs behind the relevant platform/driver interface, not scattered through generic kernel code.
 
+## Firmware research baseline
+
+The Compaq 610 family has multiple system-board variants, so the exact board in DadLAN Laptop #10 must still be read from the physical machine before flashing. However, the recorded T5870 + Intel integrated-graphics configuration lines up strongly with HP's **GM UMA** board class.
+
+Current research baseline:
+
+| Item | Research result | Confidence |
+| --- | --- | --- |
+| HP system-board spare | **538409-001** for Intel + GM/UMA configurations | High for this hardware class; verify label |
+| Platform family | Inventec **Vulcain / VV09** | High for the Intel UMA schematic family |
+| Candidate board ID | **VV09-6050A2256501-MB-A04** appears in a matching T5870/Compaq 610 repair dump; schematic is AX1/A01 family | Candidate only — physically verify |
+| Northbridge | Intel **GME965** for the GM UMA configuration | High for T5870/800 MHz FSB UMA model |
+| Southbridge | Intel **ICH8M** | High |
+| BIOS flash device in Vulcain UMA schematic | **SST25VF080B**, reference **U23**, SOIC-8, 8 Mbit / 1 MiB SPI NOR | High for schematic family; physically verify marking |
+| Flash operating voltage | **2.7–3.6 V**, nominally 3.3 V | Datasheet-backed for SST25VF080B |
+| BIOS rail in schematic | **+V3A** | Schematic-backed |
+| Flashrom support | SST25VF080B is listed as tested for probe/read/erase/write | Upstream flashrom source |
+| Likely Intel BIOS family | **68PVU** for Intel-video Compaq 610 variants | Strong secondary-source evidence; verify current BIOS ID |
+| Known later vendor BIOS | **F.20**, released 2 Dec 2011 | Secondary archive; verify against HP package for exact product number |
+
+The schematic identifies the SPI chip as U23, but this is **not permission to connect a programmer blindly**. Before attaching power or a clip, read the marking on Laptop #10's actual U23 and confirm the board ID/revision.
+
+### External programmer plan
+
+Prefer an **external 3.3 V-capable SPI programmer** with a SOIC-8 test clip or, if in-circuit reads are unstable, remove the chip and use a socket/adapter.
+
+The chosen programmer must:
+
+- drive the SST25VF080B within its 2.7–3.6 V range;
+- support standard SPI read/erase/write/verify;
+- not place 5 V logic on the flash pins;
+- allow repeatable full-chip reads before any erase/write operation.
+
+Do not use flashrom's forced internal-laptop flashing path as the recovery strategy. Upstream flashrom explicitly warns that laptop ECs can interfere with internal flash access.
+
+### Backup acceptance test
+
+Before any experimental write:
+
+1. Disconnect AC power and main battery before attaching an external programmer unless the exact in-circuit power method has been deliberately validated.
+2. Identify pin 1 and confirm clip orientation.
+3. Probe the chip and confirm it identifies as the physically observed part.
+4. Read the complete chip at least **three times**.
+5. Hash all dumps with SHA-256; all three must be byte-identical.
+6. Store the original dump in at least two separate locations, with one copy marked read-only.
+7. Record board ID, chip marking, programmer model, programmer voltage, flashrom/programmer version and hashes.
+8. Inspect the image for plausible firmware structure and preserve machine-specific data such as serial/MAC/platform data.
+9. Perform a verify-only read comparison before considering a write.
+
+If repeated reads differ, **stop**. That means the clip, power arrangement or in-circuit bus isolation is not reliable enough for a safe write.
+
+### Recovery procedure — not yet tested
+
+The intended hard recovery path is external reprogramming of U23 from the verified original 1 MiB dump. This is not considered tested until Laptop #10 has been deliberately recovered from a controlled non-booting test image or equivalent safe fixture.
+
+There is historical evidence of HP Win+B/HP_TOOLS recovery on this product generation, but that is only a secondary recovery path. It must not replace the external programmer because a sufficiently broken boot block may prevent firmware-assisted recovery from starting.
+
 ## Phase D — JoshFirmware safety gate
 
 **Do not flash JoshFirmware/JoshBIOS replacement firmware to this laptop yet.**
