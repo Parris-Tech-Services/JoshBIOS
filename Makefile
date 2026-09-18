@@ -34,10 +34,14 @@ $(BUILD)/test_boot_storage: tests/test_boot_storage.c boot/core/block.h boot/cor
 $(BUILD)/test_boot_config: tests/test_boot_config.c boot/core/config.h boot/core/config.c | $(BUILD)
 	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tests/test_boot_config.c boot/core/config.c -o $@
 
-host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_config
+$(BUILD)/test_boot_health: tests/test_boot_health.c boot/core/health.h boot/core/health.c | $(BUILD)
+	$(HOSTCC) $(HOST_CFLAGS) -Iboot/core tests/test_boot_health.c boot/core/health.c -o $@
+
+host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_config $(BUILD)/test_boot_health
 	$(BUILD)/test_elf64
 	$(BUILD)/test_boot_storage
 	$(BUILD)/test_boot_config
+	$(BUILD)/test_boot_health
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
