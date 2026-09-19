@@ -21,11 +21,11 @@ jobs:
       - name: Checkout JoshBIOS
         uses: actions/checkout@v4
 
-      - name: Checkout canonical AshFallen kernel
+      - name: Checkout canonical JoshOS kernel
         uses: actions/checkout@v5
         with:
-          repository: joshuaparris-max/AshFallen
-          path: ashfallen
+          repository: joshuaparris-max/JoshOS
+          path: joshos
           persist-credentials: false
 
       - name: Install firmware, kernel and VM dependencies
@@ -36,8 +36,8 @@ jobs:
             zlib1g-dev pkgconf python-is-python3 nasm mtools qemu-system-x86 \
             clang lld
 
-      - name: Build canonical AshFallen kernel
-        run: make -C ashfallen kernel
+      - name: Build canonical JoshOS kernel
+        run: make -C joshos kernel
 
       - name: Build JoshBootloader bridge image
         run: make bridge-image
@@ -48,14 +48,14 @@ jobs:
       - name: Verify Compaq 610 chipset support exists upstream
         run: bash firmware/coreboot/compaq610/check-upstream.sh build/coreboot-src
 
-      - name: Boot coreboot to JoshBootloader to AshFallen
+      - name: Boot coreboot to JoshBootloader to JoshOS
         run: |
           rm -f build/coreboot-boot.log
           status=0
           timeout 20s qemu-system-x86_64 \
             -machine pc -m 256M \
             -bios build/coreboot-qemu.rom \
-            -drive format=raw,file=build/joshbios-ashfallen.img \
+            -drive format=raw,file=build/joshbios-joshos.img \
             -display none -serial stdio -monitor none -no-reboot \
             > build/coreboot-boot.log 2>&1 || status=$?
           echo "===== coreboot boot log ====="
@@ -68,7 +68,7 @@ jobs:
               grep -q "$marker" build/coreboot-boot.log || { echo "Missing required marker: $marker"; exit 1; }
             fi
           done
-          echo "coreboot -> SeaBIOS -> JoshBootloader -> AshFallen smoke test passed."
+          echo "coreboot -> SeaBIOS -> JoshBootloader -> JoshOS smoke test passed."
 
       - name: Upload virtual firmware evidence
         if: always()

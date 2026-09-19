@@ -27,7 +27,7 @@ JoshBootloader Stage 2 (@ 0x8000)
   | build bootstrap page tables
   | enter x86-64 long mode
   v
-canonical AshFallen kernel
+canonical JoshOS kernel
   |
   v
 JOSHOS_BOOT_OK

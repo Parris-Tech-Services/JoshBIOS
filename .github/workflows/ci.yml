@@ -15,11 +15,11 @@ jobs:
       - name: Checkout JoshBIOS
         uses: actions/checkout@v4
 
-      - name: Checkout canonical AshFallen kernel
+      - name: Checkout canonical JoshOS kernel
         uses: actions/checkout@v5
         with:
-          repository: joshuaparris-max/AshFallen
-          path: ashfallen
+          repository: joshuaparris-max/JoshOS
+          path: joshos
           persist-credentials: false
 
       - name: Install build and VM dependencies
@@ -33,10 +33,10 @@ jobs:
       - name: Build legacy BIOS path
         run: make all
 
-      - name: Build canonical AshFallen kernel
-        run: make -C ashfallen kernel
+      - name: Build canonical JoshOS kernel
+        run: make -C joshos kernel
 
-      - name: JoshBootloader to AshFallen bridge smoke test
+      - name: JoshBootloader to JoshOS bridge smoke test
         run: make bridge-smoke
 
       - name: Malformed boot config smoke test
@@ -62,8 +62,8 @@ jobs:
 
       - name: Show image layout and boot evidence
         run: |
-          file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img build/joshbios-ashfallen.img build/BOOTX64.EFI build/joshuefi.img
-          wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img build/joshbios-ashfallen.img build/BOOTX64.EFI build/joshuefi.img
+          file build/stage1.bin build/stage2.bin build/kernel.elf build/joshbios.img build/joshbios-joshos.img build/BOOTX64.EFI build/joshuefi.img
+          wc -c build/stage1.bin build/stage2.bin build/kernel.bin build/joshbios.img build/joshbios-joshos.img build/BOOTX64.EFI build/joshuefi.img
           cat build/bridge.log
           cat build/boot.log
           cat build/uefi.log
@@ -72,7 +72,7 @@ jobs:
       - name: Record checksums
         run: |
           sha256sum build/joshbios.img | tee build/joshbios.img.sha256
-          sha256sum build/joshbios-ashfallen.img | tee build/joshbios-ashfallen.img.sha256
+          sha256sum build/joshbios-joshos.img | tee build/joshbios-joshos.img.sha256
           sha256sum build/BOOTX64.EFI | tee build/BOOTX64.EFI.sha256
           sha256sum build/joshuefi.img | tee build/joshuefi.img.sha256
 
@@ -83,8 +83,8 @@ jobs:
           path: |
             build/joshbios.img
             build/joshbios.img.sha256
-            build/joshbios-ashfallen.img
-            build/joshbios-ashfallen.img.sha256
+            build/joshbios-joshos.img
+            build/joshbios-joshos.img.sha256
             build/bridge.log
             build/bad-config.log
             build/rollback-1.log

@@ -10,7 +10,7 @@ This repository owns the **JoshBIOS / firmware / bootloader research stack**.
 
 Related repositories:
 
-- **Canonical Josh OS:** [joshuaparris-max/AshFallen](https://github.com/joshuaparris-max/AshFallen) — product track plus the independent x86-64 Josh kernel.
+- **Canonical Josh OS:** [joshuaparris-max/JoshOS](https://github.com/joshuaparris-max/JoshOS) — product track plus the independent x86-64 Josh kernel.
 - **Stage 0 desktop/ISO extraction:** [Parris-Tech-Services/JoshOS-Stage0](https://github.com/Parris-Tech-Services/JoshOS-Stage0) — browser shell + ArchISO compatibility image.
 
 Within this repository:
@@ -36,7 +36,7 @@ ELF64 load → x86-64 long mode
         ↓
 Josh Boot Protocol
         ↓
-canonical AshFallen x86-64 kernel
+canonical JoshOS x86-64 kernel
 
 The small local JoshBIOS kernel remains as an unpartitioned regression payload.
 
@@ -56,7 +56,7 @@ BIOS / UEFI
         ↓
 Limine
         ↓
-AshFallen/kernel (x86-64 Josh kernel)
+JoshOS/kernel (x86-64 Josh kernel)
 
 future convergence target:
 
@@ -80,7 +80,7 @@ The convergence point should be a **versioned boot ABI** rather than copying ker
 - [Josh Boot Protocol implementation plan](docs/JOSH_BOOT_PROTOCOL.md)
 - [Architecture](docs/ARCHITECTURE.md)
 
-The canonical kernel-side boot contract and whole-stack roadmap live in AshFallen.
+The canonical kernel-side boot contract and whole-stack roadmap live in JoshOS.
 
 ## What works now
 
@@ -95,13 +95,13 @@ PC reset
   -> E820 + VBE + ACPI/SMBIOS discovery
   -> x86-64 page tables + long-mode transition
   -> Josh Boot Protocol v0 hand-off
-  -> canonical AshFallen kernel
+  -> canonical JoshOS kernel
   -> JOSHOS_BOOT_OK
 ```
 
-No GRUB and no Linux kernel are involved in this native legacy-BIOS path. CI now proves the filesystem-backed JoshBootloader path reaches the canonical AshFallen kernel's `JOSHOS_BOOT_OK` marker in QEMU. The tiny local kernel remains only as a regression payload.
+No GRUB and no Linux kernel are involved in this native legacy-BIOS path. CI now proves the filesystem-backed JoshBootloader path reaches the canonical JoshOS kernel's `JOSHOS_BOOT_OK` marker in QEMU. The tiny local kernel remains only as a regression payload.
 
-The UEFI path is now **tested scaffolding**, not a kernel boot path: CI builds a real x86-64 PE32+ `BOOTX64.EFI`, places it at the standard removable-media path on a FAT image, boots it under QEMU/OVMF, and requires the `JOSHUEFI_ENTRY_OK` serial marker. It does **not** yet discover GOP, capture the UEFI memory map, call `ExitBootServices`, load ELF64, construct the full Josh Boot Protocol, or enter AshFallen.
+The UEFI path is now **tested scaffolding**, not a kernel boot path: CI builds a real x86-64 PE32+ `BOOTX64.EFI`, places it at the standard removable-media path on a FAT image, boots it under QEMU/OVMF, and requires the `JOSHUEFI_ENTRY_OK` serial marker. It does **not** yet discover GOP, capture the UEFI memory map, call `ExitBootServices`, load ELF64, construct the full Josh Boot Protocol, or enter JoshOS.
 
 ## Build
 

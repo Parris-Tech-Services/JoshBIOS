@@ -8,8 +8,8 @@ UEFI_LD ?= lld-link
 BUILD := build
 STAGE2_SECTORS := 64
 KERNEL_SECTORS := 8192
-ASHFALLEN_KERNEL ?= ashfallen/kernel/bin/kernel
-BRIDGE_IMAGE := $(BUILD)/joshbios-ashfallen.img
+JOSHOS_KERNEL ?= joshos/kernel/bin/kernel
+BRIDGE_IMAGE := $(BUILD)/joshbios-joshos.img
 BAD_CONFIG_IMAGE := $(BUILD)/joshbios-bad-config.img
 ROLLBACK_IMAGE := $(BUILD)/joshbios-rollback.img
 RECOVERY_IMAGE := $(BUILD)/joshbios-recovery.img
@@ -129,8 +129,8 @@ smoke: all
 	@rm -f $(BUILD)/boot.log; 	  status=0; 	  timeout 10s qemu-system-i386 	    -drive format=raw,file=$(BUILD)/joshbios.img 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/boot.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBIOS_BOOTINFO_OK $(BUILD)/boot.log; 	  grep -q JOSHBIOS_BOOT_OK $(BUILD)/boot.log; 	  echo "JoshBIOS QEMU boot smoke test passed."
 
 bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin $(BUILD)/josh-healthctl
-	@test -f "$(ASHFALLEN_KERNEL)" || { echo "AshFallen kernel not found: $(ASHFALLEN_KERNEL)"; exit 1; }
-	@kernel_size=$$(wc -c < "$(ASHFALLEN_KERNEL)"); max=$$(( $(KERNEL_SECTORS) * 512 )); 	  test $$kernel_size -le $$max || { echo "AshFallen kernel too large for loader buffer: $$kernel_size > $$max"; exit 1; }
+	@test -f "$(JOSHOS_KERNEL)" || { echo "JoshOS kernel not found: $(JOSHOS_KERNEL)"; exit 1; }
+	@kernel_size=$$(wc -c < "$(JOSHOS_KERNEL)"); max=$$(( $(KERNEL_SECTORS) * 512 )); 	  test $$kernel_size -le $$max || { echo "JoshOS kernel too large for loader buffer: $$kernel_size > $$max"; exit 1; }
 	truncate -s 67108864 $(BRIDGE_IMAGE)
 	dd if=$(BUILD)/stage1.bin of=$(BRIDGE_IMAGE) conv=notrunc status=none
 	dd if=$(BUILD)/stage2.bin of=$(BRIDGE_IMAGE) bs=512 seek=1 conv=notrunc status=none
@@ -150,14 +150,14 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin $(BUILD)/josh-healthctl
 		'cmdline=josh.boot=normal' \
 		'flags=development' > $(BUILD)/BOOT.CFG
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" $(BUILD)/BOOT.CFG ::/BOOT/JOSH/BOOT.CFG
-	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
-	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KRNLPREV.ELF
-	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/RECOVERY.ELF
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(JOSHOS_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(JOSHOS_KERNEL)" ::/BOOT/JOSH/KRNLPREV.ELF
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(JOSHOS_KERNEL)" ::/BOOT/JOSH/RECOVERY.ELF
 	$(BUILD)/josh-healthctl init $(BRIDGE_IMAGE) >/dev/null
-	@echo "JoshBootloader FAT32 + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
+	@echo "JoshBootloader FAT32 + JoshOS bridge image ready: $(BRIDGE_IMAGE)"
 
 bridge-smoke: bridge-image
-	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_CPU_LONG_MODE_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_PARTITION_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_FAT32_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_CONFIG_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_PATH_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_FILE_LOADED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_RSDP_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_SMBIOS_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_CMDLINE_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_PAGING_OWNED_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader FAT32 -> AshFallen QEMU bridge smoke test passed."
+	@rm -f $(BUILD)/bridge.log; 	  status=0; 	  timeout 15s qemu-system-x86_64 	    -machine pc -m 256M 	    -drive format=raw,file=$(BRIDGE_IMAGE) 	    -display none -serial stdio -monitor none -no-reboot 	    > $(BUILD)/bridge.log 2>&1 || status=$$?; 	  test $$status -eq 0 -o $$status -eq 124; 	  grep -q JOSHBOOT_CPU_LONG_MODE_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_PARTITION_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_FAT32_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_CONFIG_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_PATH_OK $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_KERNEL_FILE_LOADED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_ELF64_DETECTED $(BUILD)/bridge.log; 	  grep -q JOSHBOOT_HANDOFF_READY $(BUILD)/bridge.log; 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_RSDP_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_SMBIOS_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_CMDLINE_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_PAGING_OWNED_OK $(BUILD)/bridge.log; 	  grep -q JOSHOS_BOOT_OK $(BUILD)/bridge.log; 	  echo "JoshBootloader FAT32 -> JoshOS QEMU bridge smoke test passed."
 
 bridge-config-fail-smoke: bridge-image
 	cp $(BRIDGE_IMAGE) $(BAD_CONFIG_IMAGE)
@@ -259,7 +259,7 @@ uefi: $(BUILD)/BOOTX64.EFI
 	@echo "JoshUEFI application OK: $(BUILD)/BOOTX64.EFI"
 
 $(BUILD)/joshuefi.img: $(BUILD)/BOOTX64.EFI
-	@test -f "$(ASHFALLEN_KERNEL)" || { echo "AshFallen kernel not found: $(ASHFALLEN_KERNEL)"; exit 1; }
+	@test -f "$(JOSHOS_KERNEL)" || { echo "JoshOS kernel not found: $(JOSHOS_KERNEL)"; exit 1; }
 	truncate -s 67108864 $@
 	mformat -i $@ -F ::
 	mmd -i $@ ::/EFI
@@ -278,9 +278,9 @@ $(BUILD)/joshuefi.img: $(BUILD)/BOOTX64.EFI
 		'cmdline=josh.boot=uefi' \
 		'flags=development' > $(BUILD)/UEFI-BOOT.CFG
 	mcopy -i $@ $(BUILD)/UEFI-BOOT.CFG ::/EFI/JOSH/BOOT.CFG
-	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/KERNEL.ELF
-	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/KRNLPREV.ELF
-	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/RECOVERY.ELF
+	mcopy -i $@ "$(JOSHOS_KERNEL)" ::/EFI/JOSH/KERNEL.ELF
+	mcopy -i $@ "$(JOSHOS_KERNEL)" ::/EFI/JOSH/KRNLPREV.ELF
+	mcopy -i $@ "$(JOSHOS_KERNEL)" ::/EFI/JOSH/RECOVERY.ELF
 
 uefi-image: $(BUILD)/joshuefi.img
 	@echo "JoshUEFI removable-media image OK: $(BUILD)/joshuefi.img"
@@ -311,7 +311,7 @@ uefi-smoke: uefi-image
 	  grep -q JOSHOS_KERNEL_ENTERED $(BUILD)/uefi.log; \
 	  grep -q JOSHOS_BOOT_ADAPTER_OK $(BUILD)/uefi.log; \
 	  grep -q JOSHOS_BOOT_OK $(BUILD)/uefi.log; \
-	  echo "JoshUEFI -> AshFallen OVMF boot smoke test passed."
+	  echo "JoshUEFI -> JoshOS OVMF boot smoke test passed."
 
 uefi-recovery-smoke: uefi-image
 	@test -n "$(OVMF_CODE)" || { echo "OVMF code image not found"; exit 1; }
