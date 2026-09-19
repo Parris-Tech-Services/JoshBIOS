@@ -12,7 +12,7 @@ static const char valid_config[] =
     "entry=josh\n"
     "name=Josh OS\n"
     "kernel=/boot/josh/kernel.elf\n"
-    "previous_kernel=/boot/josh/kernel-prev.elf\n"
+    "previous_kernel=/boot/josh/krnlprev.elf\n"
     "recovery_kernel=/boot/josh/recovery.elf\n"
     "cmdline=quiet\n"
     "flags=development\n";
@@ -30,7 +30,7 @@ static void test_valid(void) {
     assert(strcmp(config.entry_id, "josh") == 0);
     assert(strcmp(config.display_name, "Josh OS") == 0);
     assert(strcmp(config.kernel_path, "/boot/josh/kernel.elf") == 0);
-    assert(strcmp(config.previous_kernel_path, "/boot/josh/kernel-prev.elf") == 0);
+    assert(strcmp(config.previous_kernel_path, "/boot/josh/krnlprev.elf") == 0);
     assert(strcmp(config.recovery_kernel_path, "/boot/josh/recovery.elf") == 0);
     assert(strcmp(config.command_line, "quiet") == 0);
     assert(config.flags == JOSH_BOOT_CONFIG_FLAG_DEVELOPMENT);
