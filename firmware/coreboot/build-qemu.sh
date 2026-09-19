@@ -9,10 +9,11 @@ rm -rf "$work"
 git clone --filter=blob:none https://github.com/coreboot/coreboot.git "$work"
 git -C "$work" checkout --detach "$revision"
 
-make -C "$work" distclean
-make -C "$work" defconfig KBUILD_DEFCONFIG="$repo_root/firmware/coreboot/qemu-defconfig"
-make -C "$work" olddefconfig
-make -C "$work" -j"$(nproc)"
+host_make=(HOSTCC=clang HOSTCXX=clang++)
+make -C "$work" "${host_make[@]}" distclean
+make -C "$work" "${host_make[@]}" defconfig KBUILD_DEFCONFIG="$repo_root/firmware/coreboot/qemu-defconfig"
+make -C "$work" "${host_make[@]}" olddefconfig
+make -C "$work" "${host_make[@]}" -j"$(nproc)"
 
 test -s "$work/build/coreboot.rom"
 cp "$work/build/coreboot.rom" "$repo_root/build/coreboot-qemu.rom"
