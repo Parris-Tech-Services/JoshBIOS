@@ -55,6 +55,7 @@ host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_co
 	$(BUILD)/test_firmware_update
 	$(PYTHON) tests/test_compaq610_preflight.py
 	$(PYTHON) tests/test_compaq610_port_input.py
+	$(PYTHON) tests/test_make_smoke_recipes.py
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)
 	$(CC) $(ASFLAGS) -c $< -o $@
@@ -174,7 +175,7 @@ bridge-config-fail-smoke: bridge-image
 	    -drive format=raw,file=$(BAD_CONFIG_IMAGE) \
 	    -display none -serial stdio -monitor none -no-reboot \
 	    > $(BUILD)/bad-config.log 2>&1 || status=$$?; \
-	  test $$status -eq 0 -o $status -eq 124; \
+	  test $$status -eq 0 -o $$status -eq 124; \
 	  grep -q JOSHBOOT_ERROR_CONFIG_PARSE $(BUILD)/bad-config.log; \
 	  grep -q JOSHBOOT_ERROR_FILESYSTEM_LOAD $(BUILD)/bad-config.log; \
 	  ! grep -q JOSHOS_BOOT_OK $(BUILD)/bad-config.log; \
@@ -194,7 +195,7 @@ bridge-rollback-smoke: bridge-image $(BUILD)/josh-healthctl
 	      -drive format=raw,file=$(ROLLBACK_IMAGE) \
 	      -display none -serial stdio -monitor none -no-reboot \
 	      > "$$log" 2>&1 || status=$$?; \
-	    test $$status -eq 0 -o $status -eq 124; \
+	    test $$status -eq 0 -o $$status -eq 124; \
 	    cat "$$log"; \
 	    grep -q JOSHBOOT_SLOT_CURRENT "$$log"; \
 	    grep -q JOSHOS_BOOT_OK "$$log"; \
@@ -205,7 +206,7 @@ bridge-rollback-smoke: bridge-image $(BUILD)/josh-healthctl
 	    -drive format=raw,file=$(ROLLBACK_IMAGE) \
 	    -display none -serial stdio -monitor none -no-reboot \
 	    > $(BUILD)/rollback-4.log 2>&1 || status=$$?; \
-	  test $$status -eq 0 -o $status -eq 124; \
+	  test $$status -eq 0 -o $$status -eq 124; \
 	  cat $(BUILD)/rollback-4.log; \
 	  grep -q JOSHBOOT_HEALTH_ROLLBACK_PREVIOUS $(BUILD)/rollback-4.log; \
 	  grep -q JOSHBOOT_SLOT_PREVIOUS $(BUILD)/rollback-4.log; \
@@ -226,7 +227,7 @@ bridge-recovery-smoke: bridge-image
 	    -drive format=raw,file=$(RECOVERY_IMAGE) \
 	    -display none -serial stdio -monitor none -no-reboot \
 	    > $(BUILD)/recovery.log 2>&1 || status=$$?; \
-	  test $$status -eq 0 -o $status -eq 124; \
+	  test $$status -eq 0 -o $$status -eq 124; \
 	  cat $(BUILD)/recovery.log; \
 	  grep -q JOSHBOOT_FALLBACK_PREVIOUS $(BUILD)/recovery.log; \
 	  grep -q JOSHBOOT_FALLBACK_RECOVERY $(BUILD)/recovery.log; \
