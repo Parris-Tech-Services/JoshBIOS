@@ -37,7 +37,7 @@ jobs:
             clang lld
 
       - name: Build canonical JoshOS kernel
-        run: make -C ashfallen kernel
+        run: make -C joshos kernel
 
       - name: Build JoshBootloader bridge image
         run: make bridge-image
