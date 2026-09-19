@@ -2,7 +2,7 @@
 
 The canonical specification direction lives with the Josh kernel in:
 
-- `joshuaparris-max/AshFallen/docs/BOOT_ABI.md`
+- `joshuaparris-max/JoshOS/docs/BOOT_ABI.md`
 
 This document records the bootloader implementation responsibilities.
 
@@ -23,7 +23,7 @@ As of 18 September 2026, the UEFI path has crossed its first executable mileston
 
 Status: **tested scaffold**.
 
-This does not yet mean JoshBootloader can boot Josh OS through UEFI. GOP discovery, `GetMemoryMap`, ACPI/SMBIOS table capture, filesystem/kernel loading, `ExitBootServices`, Josh Boot Protocol construction and AshFallen kernel entry are still unimplemented on this path.
+This does not yet mean JoshBootloader can boot Josh OS through UEFI. GOP discovery, `GetMemoryMap`, ACPI/SMBIOS table capture, filesystem/kernel loading, `ExitBootServices`, Josh Boot Protocol construction and JoshOS kernel entry are still unimplemented on this path.
 
 ## Bootloader implementation modules
 
