@@ -109,6 +109,10 @@ int main(void) {
     test_optional_fields();
     test_rejections();
     test_size_limit();
+    for (int status = JOSH_CONFIG_OK; status <= JOSH_CONFIG_UNSUPPORTED_FEATURE; ++status) {
+        assert(josh_boot_config_status_string((josh_boot_config_status_t)status) != NULL);
+    }
+    assert(josh_boot_config_status_string((josh_boot_config_status_t)999) != NULL);
     puts("boot config tests passed");
     return 0;
 }
