@@ -22,7 +22,7 @@ This is deliberately small. It proves that the bootloader and kernel communicate
 
 ## Planned ABI growth
 
-Before the Josh boot stack attempts to boot the canonical x86-64 Josh OS kernel in `joshuaparris-max/AshFallen`, the ABI should grow to describe:
+Before the Josh boot stack attempts to boot the canonical x86-64 Josh OS kernel in `joshuaparris-max/JoshOS`, the ABI should grow to describe:
 
 - usable/reserved memory map;
 - framebuffer address, geometry, pitch and pixel masks;
