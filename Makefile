@@ -144,13 +144,13 @@ bridge-image: $(BUILD)/stage1.bin $(BUILD)/stage2.bin $(BUILD)/josh-healthctl
 		'entry=josh' \
 		'name=Josh OS' \
 		'kernel=/boot/josh/kernel.elf' \
-		'previous_kernel=/boot/josh/kernel-prev.elf' \
+		'previous_kernel=/boot/josh/krnlprev.elf' \
 		'recovery_kernel=/boot/josh/recovery.elf' \
 		'cmdline=josh.boot=normal' \
 		'flags=development' > $(BUILD)/BOOT.CFG
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" $(BUILD)/BOOT.CFG ::/BOOT/JOSH/BOOT.CFG
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL.ELF
-	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KERNEL-PREV.ELF
+	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/KRNLPREV.ELF
 	mcopy -i "$(BRIDGE_IMAGE)@@1048576" "$(ASHFALLEN_KERNEL)" ::/BOOT/JOSH/RECOVERY.ELF
 	$(BUILD)/josh-healthctl init $(BRIDGE_IMAGE) >/dev/null
 	@echo "JoshBootloader FAT32 + AshFallen bridge image ready: $(BRIDGE_IMAGE)"
@@ -219,7 +219,7 @@ bridge-rollback-smoke: bridge-image $(BUILD)/josh-healthctl
 bridge-recovery-smoke: bridge-image
 	cp $(BRIDGE_IMAGE) $(RECOVERY_IMAGE)
 	mdel -i "$(RECOVERY_IMAGE)@@1048576" ::/BOOT/JOSH/KERNEL.ELF
-	mdel -i "$(RECOVERY_IMAGE)@@1048576" ::/BOOT/JOSH/KERNEL-PREV.ELF
+	mdel -i "$(RECOVERY_IMAGE)@@1048576" ::/BOOT/JOSH/KRNLPREV.ELF
 	@rm -f $(BUILD)/recovery.log; \
 	  status=0; \
 	  timeout 15s qemu-system-x86_64 \
@@ -272,13 +272,13 @@ $(BUILD)/joshuefi.img: $(BUILD)/BOOTX64.EFI
 		'entry=josh' \
 		'name=Josh OS' \
 		'kernel=/EFI/JOSH/KERNEL.ELF' \
-		'previous_kernel=/EFI/JOSH/KERNEL-PREV.ELF' \
+		'previous_kernel=/EFI/JOSH/KRNLPREV.ELF' \
 		'recovery_kernel=/EFI/JOSH/RECOVERY.ELF' \
 		'cmdline=josh.boot=uefi' \
 		'flags=development' > $(BUILD)/UEFI-BOOT.CFG
 	mcopy -i $@ $(BUILD)/UEFI-BOOT.CFG ::/EFI/JOSH/BOOT.CFG
 	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/KERNEL.ELF
-	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/KERNEL-PREV.ELF
+	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/KRNLPREV.ELF
 	mcopy -i $@ "$(ASHFALLEN_KERNEL)" ::/EFI/JOSH/RECOVERY.ELF
 
 uefi-image: $(BUILD)/joshuefi.img
@@ -317,7 +317,7 @@ uefi-recovery-smoke: uefi-image
 	@test -n "$(OVMF_VARS)" || { echo "OVMF vars image not found"; exit 1; }
 	cp $(BUILD)/joshuefi.img $(UEFI_RECOVERY_IMAGE)
 	mdel -i $(UEFI_RECOVERY_IMAGE) ::/EFI/JOSH/KERNEL.ELF
-	mdel -i $(UEFI_RECOVERY_IMAGE) ::/EFI/JOSH/KERNEL-PREV.ELF
+	mdel -i $(UEFI_RECOVERY_IMAGE) ::/EFI/JOSH/KRNLPREV.ELF
 	@cp "$(OVMF_VARS)" $(BUILD)/OVMF_RECOVERY_VARS.fd
 	@rm -f $(BUILD)/uefi-recovery.log; \
 	  status=0; \
