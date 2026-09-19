@@ -34,7 +34,7 @@ jobs:
         run: make all
 
       - name: Build canonical JoshOS kernel
-        run: make -C ashfallen kernel
+        run: make -C joshos kernel
 
       - name: JoshBootloader to JoshOS bridge smoke test
         run: make bridge-smoke
