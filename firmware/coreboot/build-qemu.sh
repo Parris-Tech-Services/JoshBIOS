@@ -10,6 +10,7 @@ git clone --filter=blob:none https://github.com/coreboot/coreboot.git "$work"
 git -C "$work" checkout --detach "$revision"
 
 host_make=(HOSTCC=clang HOSTCXX=clang++)
+make -C "$work" crossgcc-i386 CPUS="$(nproc)"
 make -C "$work" "${host_make[@]}" distclean
 make -C "$work" "${host_make[@]}" defconfig KBUILD_DEFCONFIG="$repo_root/firmware/coreboot/qemu-defconfig"
 make -C "$work" "${host_make[@]}" olddefconfig

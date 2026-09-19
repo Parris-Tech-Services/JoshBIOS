@@ -16,7 +16,7 @@ permissions:
 jobs:
   coreboot-to-josh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout JoshBIOS
         uses: actions/checkout@v4
