@@ -1,6 +1,6 @@
 # JoshBIOS / JoshFirmware / JoshBootloader roadmap
 
-This repository owns the low-level Josh boot research stack. Its small local kernel is a **test payload**. The canonical native Josh OS kernel lives in [joshuaparris-max/AshFallen](https://github.com/joshuaparris-max/AshFallen).
+This repository owns the low-level Josh boot research stack. Its small local kernel is a **test payload**. The canonical native Josh OS kernel lives in [joshuaparris-max/JoshOS](https://github.com/joshuaparris-max/JoshOS).
 
 ## Detailed roadmaps
 
@@ -9,7 +9,7 @@ This repository owns the low-level Josh boot research stack. Its small local ker
 - [Josh Boot Protocol](docs/JOSH_BOOT_PROTOCOL.md) — bootloader-side hand-off contract.
 - [Architecture](docs/ARCHITECTURE.md) — current experimental boot chain.
 
-The matching canonical-kernel contract is documented in `AshFallen/docs/BOOT_ABI.md`.
+The matching canonical-kernel contract is documented in `JoshOS/docs/BOOT_ABI.md`.
 
 ## v0.1 — First light
 
@@ -41,11 +41,11 @@ Preserve the tiny payload as a regression target, but focus new boot engineering
 - [x] memory-map hand-off;
 - [x] framebuffer hand-off;
 - [x] explicitly assert ACPI/SMBIOS hand-off in integration CI;
-- [x] load the canonical `AshFallen/kernel`;
+- [x] load the canonical `JoshOS/kernel`;
 - [x] reach the canonical kernel boot-success marker in QEMU;
 - [x] keep Limine working as the reference path.
 
-GitHub Actions run `35345509864` additionally proves that the legacy-BIOS bridge reports `JOSHBOOT_CPU_LONG_MODE_OK`, delivers non-zero ACPI RSDP and SMBIOS pointers to AshFallen (`JOSHOS_RSDP_OK` / `JOSHOS_SMBIOS_OK`), and still reaches `JOSHOS_BOOT_OK`.
+GitHub Actions run `35345509864` additionally proves that the legacy-BIOS bridge reports `JOSHBOOT_CPU_LONG_MODE_OK`, delivers non-zero ACPI RSDP and SMBIOS pointers to JoshOS (`JOSHOS_RSDP_OK` / `JOSHOS_SMBIOS_OK`), and still reaches `JOSHOS_BOOT_OK`.
 
 ## v0.3 — Real boot manager
 
@@ -60,7 +60,7 @@ GitHub Actions run `35345509864` additionally proves that the legacy-BIOS bridge
 - [ ] kernel/module hashing;
 - [ ] typed error screen instead of silent halt.
 
-The current branded Limine **Josh OS Boot Manager** in AshFallen is the behaviour/reference to converge with, not a second permanent boot-manager architecture.
+The current branded Limine **Josh OS Boot Manager** in JoshOS is the behaviour/reference to converge with, not a second permanent boot-manager architecture.
 
 ## v0.4 — UEFI + legacy adapters
 
