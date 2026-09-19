@@ -9,7 +9,7 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then
   exit 2
 fi
 
-required=(dmidecode lspci flashrom sha256sum)
+required=(dmidecode lspci)
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Missing required tool: $command_name" >&2
@@ -47,33 +47,24 @@ else
   echo "superiotool unavailable" > "$out/superiotool.txt"
 fi
 
-flashrom -p internal --flash-name > "$out/flashrom-name.txt" 2>&1 || {
-  echo "flashrom could not identify the internal flash chip." >&2
-  exit 3
-}
-
-for n in 1 2 3; do
-  flashrom -p internal -r "$out/oem-rom-$n.bin" > "$out/flashrom-read-$n.txt" 2>&1 || {
-    echo "SPI read $n failed; no write was attempted." >&2
-    exit 3
-  }
-done
-
-sha256sum "$out"/oem-rom-*.bin > "$out/oem-rom-sha256.txt"
-
 cat > "$out/MANUAL-EVIDENCE.txt" <<'EOF'
-READ-ONLY CAPTURE COMPLETE.
+LIVE HARDWARE CAPTURE COMPLETE.
+
+This laptop-side collector deliberately does not access the SPI flash through
+flashrom's internal programmer.
 
 Before any physical firmware image can be considered flash-ready:
 1. Open the laptop and record the exact motherboard silkscreen in:
    manual-board-silkscreen.txt
 2. Record the exact marking printed on U23 in:
    manual-spi-marking.txt
-3. Externally restore the untouched OEM image with the intended programmer,
+3. Power the target down and use capture-spi-external.sh from the programmer
+   host to obtain three independent OEM ROM reads.
+4. Externally restore the untouched OEM image with the intended programmer,
    boot the laptop successfully, then create recovery-proof.json using the
    schema in firmware/coreboot/compaq610/recovery-proof.example.json.
 
-The collector has not written firmware.
+The collector has not read, erased or written the SPI flash.
 EOF
 
-echo "Compaq 610 read-only evidence captured in: $out"
+echo "Compaq 610 live hardware evidence captured in: $out"

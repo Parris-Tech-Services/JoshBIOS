@@ -24,6 +24,7 @@ with tempfile.TemporaryDirectory() as tmp:
         "flashrom-name.txt":'Found SST flash chip "SST25VF080B" (1024 kB).\n',
         "manual-board-silkscreen.txt":"VV09-6050A2256501-MB-A04\n",
         "manual-spi-marking.txt":"SST25VF080B\n",
+        "external-programmer.txt":"ch341a_spi\n",
     }
     for name,value in values.items():
         (d/name).write_text(value)

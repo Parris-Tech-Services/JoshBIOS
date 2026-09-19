@@ -35,10 +35,13 @@ support; Lenovo X61 is the reference mainboard using that stack. The Compaq
 board-specific EC, GPIO, SPD routing, clock, display and power sequencing must
 come from the target hardware capture rather than being copied from X61.
 
-Use `firmware/coreboot/compaq610/probe-linux.sh` on the physical laptop. It is
-read-only: it collects DMI/PCI/chipset evidence and performs three independent
-SPI reads. Then run `preflight.py`. Physical motherboard and SPI markings are
-mandatory inputs. `flash-gate.py` additionally requires a proven external
-OEM-ROM restore before any future physical flash backend may be enabled.
+Use `firmware/coreboot/compaq610/probe-linux.sh` on the physical laptop for
+live DMI/PCI/chipset evidence only; it deliberately does not access the SPI
+flash. After powering the target down, use
+`capture-spi-external.sh <probe-dir> <programmer>` from the external-programmer
+host to obtain three byte-identical OEM ROM reads. Then run `preflight.py`.
+Physical motherboard/SPI markings and external-capture provenance are mandatory
+inputs. `flash-gate.py` additionally requires a proven external OEM-ROM restore
+before any future physical flash backend may be enabled.
 
 No repository target flashes the Compaq 610.

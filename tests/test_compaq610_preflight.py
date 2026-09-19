@@ -30,6 +30,7 @@ with tempfile.TemporaryDirectory() as tmp:
     write(probe/"flashrom-name.txt", 'Found SST flash chip "SST25VF080B" (1024 kB).\n')
     write(probe/"manual-board-silkscreen.txt", "VV09-6050A2256501-MB-A04\n")
     write(probe/"manual-spi-marking.txt", "SST25VF080B\n")
+    write(probe/"external-programmer.txt", "ch341a_spi\n")
 
     rom = bytes((i * 37) & 0xff for i in range(PROFILE["spi_size_bytes"]))
     for n in (1,2,3):
@@ -53,5 +54,11 @@ with tempfile.TemporaryDirectory() as tmp:
     bad = run(probe)
     assert bad.returncode != 0
     assert any("physical SPI marking" in e for e in json.loads(bad.stdout)["errors"])
+
+    write(probe/"manual-spi-marking.txt", "SST25VF080B\n")
+    write(probe/"external-programmer.txt", "internal\n")
+    bad = run(probe)
+    assert bad.returncode != 0
+    assert any("internal flashrom programmer" in e for e in json.loads(bad.stdout)["errors"])
 
 print("Compaq 610 firmware preflight tests passed")

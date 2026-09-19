@@ -18,6 +18,7 @@ REQUIRED_CAPTURE_FILES = (
     "flashrom-name.txt",
     "manual-board-silkscreen.txt",
     "manual-spi-marking.txt",
+    "external-programmer.txt",
     "oem-rom-1.bin",
     "oem-rom-2.bin",
     "oem-rom-3.bin",

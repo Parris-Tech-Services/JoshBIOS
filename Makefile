@@ -55,6 +55,7 @@ host-tests: $(BUILD)/test_elf64 $(BUILD)/test_boot_storage $(BUILD)/test_boot_co
 	$(BUILD)/test_firmware_update
 	$(PYTHON) tests/test_compaq610_preflight.py
 	$(PYTHON) tests/test_compaq610_port_input.py
+	$(PYTHON) tests/test_compaq610_spi_safety.py
 	$(PYTHON) tests/test_make_smoke_recipes.py
 
 $(BUILD)/stage1.o: boot/stage1.S | $(BUILD)

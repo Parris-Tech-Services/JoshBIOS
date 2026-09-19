@@ -37,9 +37,11 @@ def validate(probe_dir, profile):
     flash_name = read_text(probe_dir / "flashrom-name.txt")
     manual_board = read_text(probe_dir / "manual-board-silkscreen.txt")
     manual_spi = read_text(probe_dir / "manual-spi-marking.txt")
+    capture_programmer = read_text(probe_dir / "external-programmer.txt")
 
     facts.update(product=product, sku=sku, baseboard=board, bios=bios,
-                 manual_board=manual_board, manual_spi=manual_spi)
+                 manual_board=manual_board, manual_spi=manual_spi,
+                 capture_programmer=capture_programmer)
 
     if norm(profile["system_product"]) not in norm(product):
         errors.append(f"product mismatch: expected {profile['system_product']!r}, got {product!r}")
@@ -71,6 +73,11 @@ def validate(probe_dir, profile):
             "physical SPI marking not confirmed: "
             f"expected {profile['spi_chip']!r}"
         )
+
+    if not capture_programmer:
+        errors.append("external SPI capture programmer not recorded")
+    elif norm(capture_programmer).startswith("internal"):
+        errors.append("internal flashrom programmer is not accepted as OEM dump evidence")
 
     roms = [probe_dir / f"oem-rom-{n}.bin" for n in (1, 2, 3)]
     hashes = []
