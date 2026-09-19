@@ -150,6 +150,11 @@ int main(void) {
     assert(state.active_generation == 8u);
     assert(state.pending_slot == JOSH_FW_SLOT_NONE);
 
+    for (int status = JOSH_FW_UPDATE_OK; status <= JOSH_FW_UPDATE_VERIFY_FAILED; ++status) {
+        assert(josh_fw_update_status_string((josh_fw_update_status_t)status) != NULL);
+    }
+    assert(josh_fw_update_status_string((josh_fw_update_status_t)999) != NULL);
+
     puts("JoshFirmware update-engine tests passed");
     return 0;
 }
