@@ -200,7 +200,7 @@ Before Laptop #10 can move from **Selected** to **Inventoried**, capture these f
 
 Keep the internal HDD intact initially.
 
-1. Build or download the current canonical native Josh OS ISO from AshFallen.
+1. Build or download the current canonical native Josh OS ISO from JoshOS.
 2. Boot it from removable media/USB, using Limine as the reference path.
 3. Record whether the firmware can select and start the media.
 4. Record every visible Josh boot stage and any failure screen.
@@ -249,7 +249,7 @@ JoshBootloader
         ↓
 Josh Boot Protocol
         ↓
-AshFallen x86-64 Josh kernel
+JoshOS x86-64 Josh kernel
         ↓
 observable JOSHOS_BOOT_OK / graphical boot evidence
 ```
@@ -359,7 +359,7 @@ Before calling the Compaq 610 a supported Josh OS development machine:
 - [ ] failures produce understandable diagnostics rather than a permanent blank screen;
 - [ ] repeated cold boots pass;
 - [ ] repeated warm reboots pass;
-- [ ] JoshBootloader can load the canonical AshFallen kernel;
+- [ ] JoshBootloader can load the canonical JoshOS kernel;
 - [ ] Josh Boot Protocol hand-off is validated on the machine;
 - [ ] shutdown/reboot behaviour is documented;
 - [ ] supported and unsupported devices are listed;
