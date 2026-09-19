@@ -1,3 +1,5 @@
+> **Shared integration status:** [Josh OS Project Status](https://github.com/joshuaparris-max/JoshOS/blob/main/docs/PROJECT_STATUS.md) is the cross-repo ground truth for CI, branches, ownership and merge order.
+
 # JoshBIOS
 
 **JoshBIOS is a from-scratch PC boot stack by Parris Tech Services.**
