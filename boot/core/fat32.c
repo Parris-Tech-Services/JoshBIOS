@@ -66,16 +66,22 @@ static josh_fat32_status_t next_cluster(const josh_fat32_t *fs, uint32_t cluster
     return JOSH_FAT32_OK;
 }
 
-static int ascii_upper(char c, uint8_t *out) {
-    if (c >= 'a' && c <= 'z') c = (char)(c - 'a' + 'A');
-    if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-        || c == '_' || c == '-' || c == '$' || c == '~' || c == '!' || c == '#'
-        || c == '%' || c == '&' || c == '(' || c == ')' || c == '@' || c == '^'
-        || c == '`' || c == '{' || c == '}') {
-        *out = (uint8_t)c;
-        return 1;
+static int short_name_punctuation_allowed(char c) {
+    static const char allowed[] = "_-$~!#%&()@^`{}";
+    for (size_t i = 0; allowed[i] != '\0'; ++i) {
+        if (allowed[i] == c) return 1;
     }
     return 0;
+}
+
+static int ascii_upper(char c, uint8_t *out) {
+    if (c >= 'a' && c <= 'z') c = (char)(c - 'a' + 'A');
+    if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+          short_name_punctuation_allowed(c))) {
+        return 0;
+    }
+    *out = (uint8_t)c;
+    return 1;
 }
 
 static josh_fat32_status_t short_name_from_segment(const char *segment, size_t length, uint8_t out[11]) {
