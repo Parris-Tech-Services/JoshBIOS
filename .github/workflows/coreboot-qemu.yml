@@ -58,16 +58,20 @@ jobs:
             -drive format=raw,file=build/joshbios-ashfallen.img \
             -display none -serial stdio -monitor none -no-reboot \
             > build/coreboot-boot.log 2>&1 || status=$?
+          echo "===== coreboot boot log ====="
+          cat build/coreboot-boot.log
           test $status -eq 0 -o $status -eq 124
-          grep -qi coreboot build/coreboot-boot.log
-          grep -q JOSHBOOT_PARTITION_OK build/coreboot-boot.log
-          grep -q JOSHBOOT_FAT32_OK build/coreboot-boot.log
-          grep -q JOSHBOOT_HANDOFF_READY build/coreboot-boot.log
-          grep -q JOSHOS_BOOT_ADAPTER_OK build/coreboot-boot.log
-          grep -q JOSHOS_BOOT_OK build/coreboot-boot.log
+          for marker in coreboot JOSHBOOT_PARTITION_OK JOSHBOOT_FAT32_OK JOSHBOOT_HANDOFF_READY JOSHOS_BOOT_ADAPTER_OK JOSHOS_BOOT_OK; do
+            if [ "$marker" = coreboot ]; then
+              grep -qi "$marker" build/coreboot-boot.log || { echo "Missing required marker: $marker"; exit 1; }
+            else
+              grep -q "$marker" build/coreboot-boot.log || { echo "Missing required marker: $marker"; exit 1; }
+            fi
+          done
           echo "coreboot -> SeaBIOS -> JoshBootloader -> AshFallen smoke test passed."
 
       - name: Upload virtual firmware evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: josh-coreboot-qemu
