@@ -142,6 +142,11 @@ int main(void) {
            josh_elf64_validate(image, sizeof(TestElf64Header) + 10, &summary) ==
                JOSH_ELF64_ERR_TRUNCATED);
 
+    for (int status = JOSH_ELF64_OK; status <= JOSH_ELF64_ERR_ENTRY; ++status) {
+        expect("ELF status string", josh_elf64_status_string((JoshElf64Status)status) != NULL);
+    }
+    expect("unknown ELF status string", josh_elf64_status_string((JoshElf64Status)999) != NULL);
+
     if (failures) return 1;
     puts("JoshBIOS ELF64 parser tests passed");
     return 0;
