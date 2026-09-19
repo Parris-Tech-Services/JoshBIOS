@@ -116,6 +116,36 @@ int main(void) {
                JOSH_ELF64_ERR_MACHINE);
 
     make_valid(image);
+    ((TestElf64Header *)image)->ident[4] = 1;
+    expect("wrong class",
+           josh_elf64_validate(image, sizeof(image), &summary) ==
+               JOSH_ELF64_ERR_CLASS);
+
+    make_valid(image);
+    ((TestElf64Header *)image)->ident[5] = 2;
+    expect("wrong endian",
+           josh_elf64_validate(image, sizeof(image), &summary) ==
+               JOSH_ELF64_ERR_ENDIAN);
+
+    make_valid(image);
+    ((TestElf64Header *)image)->ident[6] = 0;
+    expect("wrong ident version",
+           josh_elf64_validate(image, sizeof(image), &summary) ==
+               JOSH_ELF64_ERR_VERSION);
+
+    make_valid(image);
+    ((TestElf64Header *)image)->type = 1;
+    expect("wrong executable type",
+           josh_elf64_validate(image, sizeof(image), &summary) ==
+               JOSH_ELF64_ERR_TYPE);
+
+    make_valid(image);
+    ((TestElf64Header *)image)->phnum = 0;
+    expect("missing program headers",
+           josh_elf64_validate(image, sizeof(image), &summary) ==
+               JOSH_ELF64_ERR_PHDR);
+
+    make_valid(image);
     TestElf64ProgramHeader *p =
         (TestElf64ProgramHeader *)(image + sizeof(TestElf64Header));
     p[0].filesz = 65;
