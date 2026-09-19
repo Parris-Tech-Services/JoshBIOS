@@ -9,6 +9,11 @@ rm -rf "$work"
 git clone --filter=blob:none https://github.com/coreboot/coreboot.git "$work"
 git -C "$work" checkout --detach "$revision"
 
+# GitHub-hosted runners have intermittently failed on ftpmirror.gnu.org's
+# large GCC archive. Use coreboot's own source mirror; buildgcc still verifies
+# every cached archive against the pinned upstream checksum before unpacking.
+sed -i 's/^USE_COREBOOT_MIRROR=0$/USE_COREBOOT_MIRROR=1/' "$work/util/crossgcc/buildgcc"
+
 host_make=(HOSTCC=clang HOSTCXX=clang++)
 for attempt in 1 2 3; do
     if make -C "$work" crossgcc-i386 CPUS="$(nproc)"; then
