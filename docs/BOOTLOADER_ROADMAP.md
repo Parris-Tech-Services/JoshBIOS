@@ -29,7 +29,7 @@ x86-64 long mode
     ↓
 Josh Boot Protocol
     ↓
-canonical AshFallen kernel
+canonical JoshOS kernel
 ```
 
 GitHub CI boots this path in QEMU and requires the canonical kernel's `JOSHOS_BOOT_OK` marker. Limine remains the independent reference boot path.
@@ -116,7 +116,7 @@ Do not rely on accidental register values.
 
 # B4 — Josh Boot Protocol
 
-Implement the versioned contract documented in AshFallen `docs/BOOT_ABI.md`.
+Implement the versioned contract documented in JoshOS `docs/BOOT_ABI.md`.
 
 Initial fields:
 
@@ -374,7 +374,7 @@ Error UI should provide a recovery/menu action rather than “halt”.
 
 ## Integration contract
 
-CI should boot the **canonical AshFallen kernel**, not only the local test payload.
+CI should boot the **canonical JoshOS kernel**, not only the local test payload.
 
 ---
 
@@ -387,7 +387,7 @@ JoshBootloader v0.x becomes meaningfully integrated when it can:
 3. parse/load the canonical Josh ELF64 kernel;
 4. enter x86-64 long mode;
 5. pass memory map + framebuffer through Josh Boot Protocol;
-6. reach the AshFallen kernel's boot-success marker;
+6. reach the JoshOS kernel's boot-success marker;
 7. expose a recovery/menu path;
 8. fail visibly and diagnostically;
 9. repeat this in CI.
@@ -416,7 +416,7 @@ This section is a recovery checkpoint for concurrent coding agents. It records o
   - consumes BIOS-provided E820/VBE buffers;
   - scans for ACPI RSDP and SMBIOS;
   - creates bootstrap identity + higher-half page tables;
-  - prepares the canonical AshFallen entry address;
+  - prepares the canonical JoshOS entry address;
   - calls an external `enter_long_mode()` hand-off routine.
 
 ## Historical limitation at this checkpoint
@@ -428,13 +428,13 @@ At this point in the history, the Stage1/Stage2 path had not yet been switched t
 Update Stage1/Stage2/Makefile together so that:
 
 1. Stage1 reserves enough sectors for the larger Stage2 image.
-2. Stage2 uses BIOS EDD to preload the canonical AshFallen ELF64 image into the agreed temporary physical buffer.
+2. Stage2 uses BIOS EDD to preload the canonical JoshOS ELF64 image into the agreed temporary physical buffer.
 3. Stage2 captures E820 into the buffer consumed by `stage2_pm.c`.
 4. Stage2 obtains a VBE linear framebuffer mode and fills the VBE buffer consumed by `stage2_pm.c`.
 5. The 32-bit Stage2 build links `stage2_pm.c` and `elf64.c`.
 6. Add `enter_long_mode` assembly that enables PAE, EFER.LME and paging, loads a 64-bit GDT, establishes a known stack/register contract, and jumps to `stage2_kernel_entry`.
-7. Build the integration image using the real AshFallen `kernel/bin/kernel`.
-8. QEMU must reach AshFallen's existing `JOSHOS_BOOT_OK` serial marker before this milestone is called integrated.
+7. Build the integration image using the real JoshOS `kernel/bin/kernel`.
+8. QEMU must reach JoshOS's existing `JOSHOS_BOOT_OK` serial marker before this milestone is called integrated.
 
 Keep Limine working as the reference path throughout.
 
@@ -445,12 +445,12 @@ Keep Limine working as the reference path throughout.
 
 This section records observed behaviour, not planned work.
 
-### JoshBootloader → canonical AshFallen boot is now verified in QEMU
+### JoshBootloader → canonical JoshOS boot is now verified in QEMU
 
 The legacy-BIOS JoshBootloader path now:
 
 1. loads Stage2 through BIOS EDD;
-2. preloads the canonical AshFallen ELF64 kernel;
+2. preloads the canonical JoshOS ELF64 kernel;
 3. captures BIOS E820 memory-map data;
 4. selects a 32-bpp VBE linear framebuffer;
 5. validates and loads the ELF64 PT_LOAD segments;
@@ -460,7 +460,7 @@ The legacy-BIOS JoshBootloader path now:
 9. enables PAE, EFER.LME and paging;
 10. enters 64-bit long mode;
 11. passes the documented loader magic values plus JoshBootInfo pointer;
-12. jumps to the canonical AshFallen kernel entry point.
+12. jumps to the canonical JoshOS kernel entry point.
 
 GitHub Actions run `35343090145` on `main` observed, in order:
 
@@ -479,15 +479,15 @@ The QEMU bridge smoke test therefore proves the current JoshBootloader can enter
 Relevant implementation commits include:
 
 - `a897b5b` — live ELF64/long-mode hand-off;
-- `b5e062b` — AshFallen bridge image + QEMU smoke target;
-- `27f2a5e` — CI boots the canonical AshFallen kernel through JoshBootloader.
+- `b5e062b` — JoshOS bridge image + QEMU smoke target;
+- `27f2a5e` — CI boots the canonical JoshOS kernel through JoshBootloader.
 
 ### Strongest truthful status
 
 - ELF64 parser/loader: **implemented + host-tested + integrated in the QEMU bridge path**.
 - x86-64 long-mode transition: **implemented + integration-tested in QEMU**.
 - Josh Boot Protocol v0 kernel hand-off: **implemented + integration-tested in QEMU**.
-- JoshBootloader → canonical AshFallen kernel: **verified in QEMU legacy-BIOS path**.
+- JoshBootloader → canonical JoshOS kernel: **verified in QEMU legacy-BIOS path**.
 - Limine path: **still retained and working as the reference path**.
 - Filesystem-based kernel discovery: **implemented and integration-tested** on the legacy-BIOS QEMU path using MBR → FAT32 → `/boot/josh/kernel.elf`.
 - Generic hardware support: **not claimed**; this evidence is QEMU-specific.
@@ -551,6 +551,6 @@ JOSHOS_SMBIOS_OK
 JOSHOS_BOOT_OK
 ```
 
-This verifies that the current legacy-BIOS QEMU path checks the CPU before entering long mode and that the ACPI RSDP and SMBIOS pointers discovered by JoshBootloader survive the Josh Boot Protocol hand-off into the canonical AshFallen kernel.
+This verifies that the current legacy-BIOS QEMU path checks the CPU before entering long mode and that the ACPI RSDP and SMBIOS pointers discovered by JoshBootloader survive the Josh Boot Protocol hand-off into the canonical JoshOS kernel.
 
 This is QEMU evidence, not physical-hardware support.
