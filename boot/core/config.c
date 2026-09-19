@@ -123,6 +123,131 @@ static int parse_flags(const char *value, size_t length, uint32_t *flags) {
     return 1;
 }
 
+static uint32_t field_from_key(const char *key, size_t key_length) {
+    static const struct {
+        const char *name;
+        uint32_t field;
+    } fields[] = {
+        {"version", FIELD_VERSION},
+        {"default", FIELD_DEFAULT},
+        {"timeout", FIELD_TIMEOUT},
+        {"entry", FIELD_ENTRY},
+        {"name", FIELD_NAME},
+        {"kernel", FIELD_KERNEL},
+        {"previous_kernel", FIELD_PREVIOUS_KERNEL},
+        {"recovery_kernel", FIELD_RECOVERY_KERNEL},
+        {"cmdline", FIELD_CMDLINE},
+        {"flags", FIELD_FLAGS},
+    };
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); ++i) {
+        if (span_equal(key, key_length, fields[i].name)) return fields[i].field;
+    }
+    return 0;
+}
+
+static int unsupported_key(const char *key, size_t key_length) {
+    return span_equal(key, key_length, "module") ||
+           span_equal(key, key_length, "initrd");
+}
+
+static josh_boot_config_status_t set_version(
+    josh_boot_config_t *config, const char *value, size_t value_length
+) {
+    uint32_t version = 0;
+    if (!parse_u32(value, value_length, &version)) return JOSH_CONFIG_INVALID_VALUE;
+    if (version != JOSH_BOOT_CONFIG_VERSION) return JOSH_CONFIG_UNSUPPORTED_VERSION;
+    config->version = version;
+    return JOSH_CONFIG_OK;
+}
+
+static josh_boot_config_status_t set_timeout(
+    josh_boot_config_t *config, const char *value, size_t value_length
+) {
+    uint32_t timeout = 0;
+    if (!parse_u32(value, value_length, &timeout) || timeout > 30u) {
+        return JOSH_CONFIG_INVALID_VALUE;
+    }
+    config->timeout_seconds = timeout;
+    return JOSH_CONFIG_OK;
+}
+
+static josh_boot_config_status_t set_entry_value(
+    char *destination, size_t capacity, const char *value, size_t value_length
+) {
+    if (!entry_id_valid(value, value_length) ||
+        !copy_value(destination, capacity, value, value_length)) {
+        return JOSH_CONFIG_INVALID_VALUE;
+    }
+    return JOSH_CONFIG_OK;
+}
+
+static josh_boot_config_status_t set_name(
+    josh_boot_config_t *config, const char *value, size_t value_length
+) {
+    if (!display_name_valid(value, value_length) ||
+        !copy_value(config->display_name, sizeof(config->display_name),
+                    value, value_length)) {
+        return JOSH_CONFIG_INVALID_VALUE;
+    }
+    return JOSH_CONFIG_OK;
+}
+
+static josh_boot_config_status_t set_path(
+    josh_boot_config_t *config, uint32_t field,
+    const char *value, size_t value_length
+) {
+    char *destination = config->kernel_path;
+    size_t capacity = sizeof(config->kernel_path);
+    if (field == FIELD_PREVIOUS_KERNEL) {
+        destination = config->previous_kernel_path;
+        capacity = sizeof(config->previous_kernel_path);
+    } else if (field == FIELD_RECOVERY_KERNEL) {
+        destination = config->recovery_kernel_path;
+        capacity = sizeof(config->recovery_kernel_path);
+    }
+    if (!path_valid(value, value_length) ||
+        !copy_value(destination, capacity, value, value_length)) {
+        return JOSH_CONFIG_INVALID_VALUE;
+    }
+    return JOSH_CONFIG_OK;
+}
+
+static josh_boot_config_status_t apply_field(
+    josh_boot_config_t *config, uint32_t field,
+    const char *value, size_t value_length
+) {
+    switch (field) {
+        case FIELD_VERSION:
+            return set_version(config, value, value_length);
+        case FIELD_TIMEOUT:
+            return set_timeout(config, value, value_length);
+        case FIELD_DEFAULT:
+            return set_entry_value(config->default_entry, sizeof(config->default_entry),
+                                   value, value_length);
+        case FIELD_ENTRY:
+            return set_entry_value(config->entry_id, sizeof(config->entry_id),
+                                   value, value_length);
+        case FIELD_NAME:
+            return set_name(config, value, value_length);
+        case FIELD_KERNEL:
+        case FIELD_PREVIOUS_KERNEL:
+        case FIELD_RECOVERY_KERNEL:
+            return set_path(config, field, value, value_length);
+        case FIELD_CMDLINE:
+            if (!command_line_valid(value, value_length) ||
+                !copy_value(config->command_line, sizeof(config->command_line),
+                            value, value_length)) {
+                return JOSH_CONFIG_INVALID_VALUE;
+            }
+            return JOSH_CONFIG_OK;
+        case FIELD_FLAGS:
+            return parse_flags(value, value_length, &config->flags)
+                ? JOSH_CONFIG_OK : JOSH_CONFIG_INVALID_VALUE;
+        default:
+            return JOSH_CONFIG_UNKNOWN_KEY;
+    }
+}
+
 static josh_boot_config_status_t set_field(
     josh_boot_config_t *config,
     uint32_t *seen,
@@ -131,104 +256,14 @@ static josh_boot_config_status_t set_field(
     const char *value,
     size_t value_length
 ) {
-    uint32_t field = 0;
-
-    if (span_equal(key, key_length, "version")) field = FIELD_VERSION;
-    else if (span_equal(key, key_length, "default")) field = FIELD_DEFAULT;
-    else if (span_equal(key, key_length, "timeout")) field = FIELD_TIMEOUT;
-    else if (span_equal(key, key_length, "entry")) field = FIELD_ENTRY;
-    else if (span_equal(key, key_length, "name")) field = FIELD_NAME;
-    else if (span_equal(key, key_length, "kernel")) field = FIELD_KERNEL;
-    else if (span_equal(key, key_length, "previous_kernel")) field = FIELD_PREVIOUS_KERNEL;
-    else if (span_equal(key, key_length, "recovery_kernel")) field = FIELD_RECOVERY_KERNEL;
-    else if (span_equal(key, key_length, "cmdline")) field = FIELD_CMDLINE;
-    else if (span_equal(key, key_length, "flags")) field = FIELD_FLAGS;
-    else if (span_equal(key, key_length, "module") ||
-             span_equal(key, key_length, "initrd")) {
-        return JOSH_CONFIG_UNSUPPORTED_FEATURE;
-    } else {
-        return JOSH_CONFIG_UNKNOWN_KEY;
+    uint32_t field = field_from_key(key, key_length);
+    if (field == 0) {
+        return unsupported_key(key, key_length)
+            ? JOSH_CONFIG_UNSUPPORTED_FEATURE : JOSH_CONFIG_UNKNOWN_KEY;
     }
-
     if ((*seen & field) != 0) return JOSH_CONFIG_DUPLICATE_KEY;
     *seen |= field;
-
-    if (field == FIELD_VERSION) {
-        uint32_t version = 0;
-        if (!parse_u32(value, value_length, &version)) return JOSH_CONFIG_INVALID_VALUE;
-        if (version != JOSH_BOOT_CONFIG_VERSION) return JOSH_CONFIG_UNSUPPORTED_VERSION;
-        config->version = version;
-        return JOSH_CONFIG_OK;
-    }
-
-    if (field == FIELD_TIMEOUT) {
-        uint32_t timeout = 0;
-        if (!parse_u32(value, value_length, &timeout) || timeout > 30u) {
-            return JOSH_CONFIG_INVALID_VALUE;
-        }
-        config->timeout_seconds = timeout;
-        return JOSH_CONFIG_OK;
-    }
-
-    if (field == FIELD_DEFAULT) {
-        if (!entry_id_valid(value, value_length) ||
-            !copy_value(config->default_entry, sizeof(config->default_entry), value, value_length)) {
-            return JOSH_CONFIG_INVALID_VALUE;
-        }
-        return JOSH_CONFIG_OK;
-    }
-
-    if (field == FIELD_ENTRY) {
-        if (!entry_id_valid(value, value_length) ||
-            !copy_value(config->entry_id, sizeof(config->entry_id), value, value_length)) {
-            return JOSH_CONFIG_INVALID_VALUE;
-        }
-        return JOSH_CONFIG_OK;
-    }
-
-    if (field == FIELD_NAME) {
-        if (!display_name_valid(value, value_length) ||
-            !copy_value(config->display_name, sizeof(config->display_name), value, value_length)) {
-            return JOSH_CONFIG_INVALID_VALUE;
-        }
-        return JOSH_CONFIG_OK;
-    }
-
-    if (field == FIELD_KERNEL ||
-        field == FIELD_PREVIOUS_KERNEL ||
-        field == FIELD_RECOVERY_KERNEL) {
-        char *destination = config->kernel_path;
-        size_t capacity = sizeof(config->kernel_path);
-        if (field == FIELD_PREVIOUS_KERNEL) {
-            destination = config->previous_kernel_path;
-            capacity = sizeof(config->previous_kernel_path);
-        } else if (field == FIELD_RECOVERY_KERNEL) {
-            destination = config->recovery_kernel_path;
-            capacity = sizeof(config->recovery_kernel_path);
-        }
-        if (!path_valid(value, value_length) ||
-            !copy_value(destination, capacity, value, value_length)) {
-            return JOSH_CONFIG_INVALID_VALUE;
-        }
-        return JOSH_CONFIG_OK;
-    }
-
-    if (field == FIELD_CMDLINE) {
-        if (!command_line_valid(value, value_length) ||
-            !copy_value(config->command_line, sizeof(config->command_line), value, value_length)) {
-            return JOSH_CONFIG_INVALID_VALUE;
-        }
-        return JOSH_CONFIG_OK;
-    }
-
-    if (field == FIELD_FLAGS) {
-        if (!parse_flags(value, value_length, &config->flags)) {
-            return JOSH_CONFIG_INVALID_VALUE;
-        }
-        return JOSH_CONFIG_OK;
-    }
-
-    return JOSH_CONFIG_UNKNOWN_KEY;
+    return apply_field(config, field, value, value_length);
 }
 
 josh_boot_config_status_t josh_boot_config_parse(
