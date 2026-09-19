@@ -176,6 +176,14 @@ static void test_invalid_mbr(void) {
 
 int main(void) {
     test_mbr_and_fat32(); test_gpt(); test_invalid_mbr();
+    for (int status = JOSH_FAT32_OK; status <= JOSH_FAT32_BUFFER_TOO_SMALL; ++status) {
+        assert(josh_fat32_status_string((josh_fat32_status_t)status) != NULL);
+    }
+    assert(josh_fat32_status_string((josh_fat32_status_t)999) != NULL);
+    for (int status = JOSH_PARTITION_OK; status <= JOSH_PARTITION_UNSUPPORTED; ++status) {
+        assert(josh_partition_status_string((josh_partition_status_t)status) != NULL);
+    }
+    assert(josh_partition_status_string((josh_partition_status_t)999) != NULL);
     puts("boot storage tests passed");
     return 0;
 }
