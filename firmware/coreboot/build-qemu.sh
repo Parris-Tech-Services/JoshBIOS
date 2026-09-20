@@ -32,6 +32,24 @@ make -C "$work" "${host_make[@]}" olddefconfig
 make -C "$work" "${host_make[@]}" -j"$(nproc)"
 
 test -s "$work/build/coreboot.rom"
+test -x "$work/build/cbfstool"
+
+# SeaBIOS is a coreboot payload here, so make the smoke-test boot path explicit
+# in CBFS instead of relying on an interactive menu/default-device timeout.
+# The path below is the QEMU i440fx primary ATA disk reported by SeaBIOS.
+runtime_cfg="$repo_root/build/coreboot-runtime"
+mkdir -p "$runtime_cfg"
+printf '%s\n' '/pci@i0cf8/*@1,1/drive@0/disk@0' > "$runtime_cfg/bootorder"
+printf '\x00\x00\x00\x00' > "$runtime_cfg/show-boot-menu"
+
+"$work/build/cbfstool" "$work/build/coreboot.rom" add \
+    -f "$runtime_cfg/bootorder" -n bootorder -t raw
+"$work/build/cbfstool" "$work/build/coreboot.rom" add \
+    -f "$runtime_cfg/show-boot-menu" -n etc/show-boot-menu -t raw
+
+"$work/build/cbfstool" "$work/build/coreboot.rom" print | grep -q 'bootorder'
+"$work/build/cbfstool" "$work/build/coreboot.rom" print | grep -q 'etc/show-boot-menu'
+
 cp "$work/build/coreboot.rom" "$repo_root/build/coreboot-qemu.rom"
 sha256sum "$repo_root/build/coreboot-qemu.rom" > "$repo_root/build/coreboot-qemu.rom.sha256"
 
