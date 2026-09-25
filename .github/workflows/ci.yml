@@ -94,6 +94,7 @@ jobs:
             build/rollback-state.log
             build/recovery.log
           if-no-files-found: error
+          retention-days: 3
 
       - name: Upload UEFI scaffold
         uses: actions/upload-artifact@v4
@@ -106,3 +107,4 @@ jobs:
             build/joshuefi.img.sha256
             build/uefi-recovery.log
           if-no-files-found: error
+          retention-days: 3
