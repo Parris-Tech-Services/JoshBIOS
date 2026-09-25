@@ -80,3 +80,4 @@ jobs:
             build/coreboot-qemu.rom.sha256
             build/coreboot-boot.log
           if-no-files-found: error
+          retention-days: 3
