@@ -42,14 +42,14 @@ The name “JoshBIOS” is a product/firmware-environment name. The implementati
 Before physical firmware experiments:
 
 - [x] choose one exact development system — DadLAN Laptop #10 / Compaq 610;
-- [ ] capture exact baseboard/revision and firmware identifiers;
-- [ ] identify firmware flash chip;
-- [ ] obtain/read a known-good firmware image;
-- [ ] verify external programmer compatibility;
-- [ ] document recovery wiring and voltage;
-- [ ] preserve vendor-specific board data where required;
-- [ ] test recovery procedure before flashing experimental firmware;
-- [ ] keep experimental and release keys separate.
+- [ ] **TASK-00868** capture exact baseboard/revision and firmware identifiers;
+- [ ] **TASK-00869** identify firmware flash chip;
+- [ ] **TASK-00870** obtain/read a known-good firmware image;
+- [ ] **TASK-00871** verify external programmer compatibility;
+- [ ] **TASK-00872** document recovery wiring and voltage;
+- [ ] **TASK-00873** preserve vendor-specific board data where required;
+- [ ] **TASK-00874** test recovery procedure before flashing experimental firmware;
+- [ ] **TASK-00875** keep experimental and release keys separate.
 
 **Rule:** no “try it and hope” flashing.
 
@@ -63,12 +63,12 @@ Use QEMU as the first integration target.
 
 Goals:
 
-- [ ] establish reproducible firmware build container/toolchain;
-- [ ] boot a JoshFirmware/JoshBIOS payload under a supported virtual firmware environment;
-- [ ] serial console from earliest practical stage;
-- [ ] deterministic build metadata;
-- [ ] CI launches firmware → JoshBootloader → test payload;
-- [ ] record firmware stage timings.
+- [ ] **TASK-00876** establish reproducible firmware build container/toolchain;
+- [ ] **TASK-00877** boot a JoshFirmware/JoshBIOS payload under a supported virtual firmware environment;
+- [ ] **TASK-00878** serial console from earliest practical stage;
+- [ ] **TASK-00879** deterministic build metadata;
+- [ ] **TASK-00880** CI launches firmware → JoshBootloader → test payload;
+- [ ] **TASK-00881** record firmware stage timings.
 
 This gives us a place to develop UX and hand-off contracts without risking hardware.
 
@@ -101,15 +101,15 @@ Never claim generic support based on one machine in the same product family.
 
 Depending on platform/foundation:
 
-- [ ] reset-vector path understood;
-- [ ] CPU microcode policy;
-- [ ] early temporary execution environment;
-- [ ] chipset/SoC initialisation;
-- [ ] clock/timer availability;
-- [ ] cache configuration required during bring-up;
-- [ ] CPU feature discovery;
-- [ ] bootstrap processor/application processor policy;
-- [ ] platform watchdog handling.
+- [ ] **TASK-00882** reset-vector path understood;
+- [ ] **TASK-00883** CPU microcode policy;
+- [ ] **TASK-00884** early temporary execution environment;
+- [ ] **TASK-00885** chipset/SoC initialisation;
+- [ ] **TASK-00886** clock/timer availability;
+- [ ] **TASK-00887** cache configuration required during bring-up;
+- [ ] **TASK-00888** CPU feature discovery;
+- [ ] **TASK-00889** bootstrap processor/application processor policy;
+- [ ] **TASK-00890** platform watchdog handling.
 
 The goal is reliable progression into DRAM-backed execution.
 
@@ -121,12 +121,12 @@ DRAM bring-up is a hard board/silicon-specific boundary.
 
 Roadmap:
 
-- [ ] supported DRAM topology documented;
-- [ ] training path understood;
-- [ ] failure diagnostics;
-- [ ] detected capacity passed forward;
-- [ ] memory test hook for diagnostics;
-- [ ] cold-boot and warm-reboot repeatability.
+- [ ] **TASK-00891** supported DRAM topology documented;
+- [ ] **TASK-00892** training path understood;
+- [ ] **TASK-00893** failure diagnostics;
+- [ ] **TASK-00894** detected capacity passed forward;
+- [ ] **TASK-00895** memory test hook for diagnostics;
+- [ ] **TASK-00896** cold-boot and warm-reboot repeatability.
 
 Do not hide memory-training failures behind a splash screen. The diagnostic path must still be observable.
 
@@ -136,15 +136,15 @@ Do not hide memory-training failures behind a splash screen. The diagnostic path
 
 Bring up only what is required for firmware and boot:
 
-- [ ] SPI/flash access;
-- [ ] RTC;
-- [ ] essential PCI/PCIe enumeration;
-- [ ] boot storage visibility;
-- [ ] USB keyboard for setup/boot selection where practical;
-- [ ] display/console path;
-- [ ] TPM detection;
-- [ ] basic temperature/fan information if safely accessible;
-- [ ] firmware settings storage.
+- [ ] **TASK-00897** SPI/flash access;
+- [ ] **TASK-00898** RTC;
+- [ ] **TASK-00899** essential PCI/PCIe enumeration;
+- [ ] **TASK-00900** boot storage visibility;
+- [ ] **TASK-00901** USB keyboard for setup/boot selection where practical;
+- [ ] **TASK-00902** display/console path;
+- [ ] **TASK-00903** TPM detection;
+- [ ] **TASK-00904** basic temperature/fan information if safely accessible;
+- [ ] **TASK-00905** firmware settings storage.
 
 General-purpose drivers belong in the OS, not firmware.
 
@@ -154,14 +154,14 @@ General-purpose drivers belong in the OS, not firmware.
 
 JoshFirmware must eventually provide correct:
 
-- [ ] ACPI RSDP/tables;
-- [ ] MADT/APIC information;
-- [ ] FADT/power information;
-- [ ] MCFG where appropriate;
-- [ ] HPET/table data if used;
-- [ ] SMBIOS;
-- [ ] board/vendor identification;
-- [ ] firmware version/build information.
+- [ ] **TASK-00906** ACPI RSDP/tables;
+- [ ] **TASK-00907** MADT/APIC information;
+- [ ] **TASK-00908** FADT/power information;
+- [ ] **TASK-00909** MCFG where appropriate;
+- [ ] **TASK-00910** HPET/table data if used;
+- [ ] **TASK-00911** SMBIOS;
+- [ ] **TASK-00912** board/vendor identification;
+- [ ] **TASK-00913** firmware version/build information.
 
 Incorrect platform tables are worse than missing optional features because they can destabilise the kernel in subtle ways.
 
@@ -188,12 +188,12 @@ Exact visual design is not frozen, but behaviour should be.
 
 Requirements:
 
-- [ ] appears only after display is reliable;
-- [ ] does not block boot for decorative animation;
-- [ ] key hints use real supported keys/actions;
-- [ ] version/build available;
-- [ ] optional quiet/verbose mode;
-- [ ] serial logging continues underneath.
+- [ ] **TASK-00914** appears only after display is reliable;
+- [ ] **TASK-00915** does not block boot for decorative animation;
+- [ ] **TASK-00916** key hints use real supported keys/actions;
+- [ ] **TASK-00917** version/build available;
+- [ ] **TASK-00918** optional quiet/verbose mode;
+- [ ] **TASK-00919** serial logging continues underneath.
 
 ## Failure mode
 
@@ -273,13 +273,13 @@ This separation avoids duplicated policy.
 
 Requirements:
 
-- [ ] versioned settings schema;
-- [ ] defaults;
-- [ ] validation;
-- [ ] recovery from corrupt settings;
-- [ ] atomic update where possible;
-- [ ] reset-to-default;
-- [ ] migration between firmware versions.
+- [ ] **TASK-00920** versioned settings schema;
+- [ ] **TASK-00921** defaults;
+- [ ] **TASK-00922** validation;
+- [ ] **TASK-00923** recovery from corrupt settings;
+- [ ] **TASK-00924** atomic update where possible;
+- [ ] **TASK-00925** reset-to-default;
+- [ ] **TASK-00926** migration between firmware versions.
 
 Never allow one corrupt setting record to brick boot.
 
@@ -291,14 +291,14 @@ Design before first user-friendly updater exists.
 
 Needs:
 
-- [ ] signed firmware artefacts;
-- [ ] board identity check;
-- [ ] image compatibility check;
-- [ ] power/interruption strategy;
-- [ ] previous-known-good or recovery image;
-- [ ] update status logging;
-- [ ] explicit development override;
-- [ ] anti-rollback policy only once recovery is mature.
+- [ ] **TASK-00927** signed firmware artefacts;
+- [ ] **TASK-00928** board identity check;
+- [ ] **TASK-00929** image compatibility check;
+- [ ] **TASK-00930** power/interruption strategy;
+- [ ] **TASK-00931** previous-known-good or recovery image;
+- [ ] **TASK-00932** update status logging;
+- [ ] **TASK-00933** explicit development override;
+- [ ] **TASK-00934** anti-rollback policy only once recovery is mature.
 
 The firmware updater must refuse an image for the wrong board.
 
@@ -308,15 +308,15 @@ The firmware updater must refuse an image for the wrong board.
 
 Progressively add:
 
-- [ ] reproducible builds;
-- [ ] release signing;
-- [ ] measured boot;
-- [ ] TPM event log;
-- [ ] Secure Boot-compatible UEFI path if adopted;
-- [ ] firmware write-protection strategy;
-- [ ] update signature verification;
-- [ ] development/release trust separation;
-- [ ] secrets/keys never embedded in public source.
+- [ ] **TASK-00935** reproducible builds;
+- [ ] **TASK-00936** release signing;
+- [ ] **TASK-00937** measured boot;
+- [ ] **TASK-00938** TPM event log;
+- [ ] **TASK-00939** Secure Boot-compatible UEFI path if adopted;
+- [ ] **TASK-00940** firmware write-protection strategy;
+- [ ] **TASK-00941** update signature verification;
+- [ ] **TASK-00942** development/release trust separation;
+- [ ] **TASK-00943** secrets/keys never embedded in public source.
 
 Security state should be passed to the bootloader/kernel as facts through the Josh Boot Protocol.
 
@@ -377,18 +377,18 @@ The first machine used for this milestone is the **Compaq 610** documented in [H
 
 A legitimate first board milestone requires:
 
-- [ ] exact board documented;
-- [ ] recovery tested;
-- [ ] repeated cold boot;
-- [ ] repeated warm reboot;
-- [ ] correct RAM amount;
-- [ ] boot storage visible;
-- [ ] keyboard/setup path;
-- [ ] display path;
-- [ ] ACPI/SMBIOS sanity;
-- [ ] JoshBootloader hand-off;
-- [ ] canonical Josh kernel boot;
-- [ ] clean shutdown/reboot from OS;
-- [ ] known limitations documented.
+- [ ] **TASK-00944** exact board documented;
+- [ ] **TASK-00945** recovery tested;
+- [ ] **TASK-00946** repeated cold boot;
+- [ ] **TASK-00947** repeated warm reboot;
+- [ ] **TASK-00948** correct RAM amount;
+- [ ] **TASK-00949** boot storage visible;
+- [ ] **TASK-00950** keyboard/setup path;
+- [ ] **TASK-00951** display path;
+- [ ] **TASK-00952** ACPI/SMBIOS sanity;
+- [ ] **TASK-00953** JoshBootloader hand-off;
+- [ ] **TASK-00954** canonical Josh kernel boot;
+- [ ] **TASK-00955** clean shutdown/reboot from OS;
+- [ ] **TASK-00956** known limitations documented.
 
 The bar is “recoverable and repeatable”, not merely “logo appeared once”.
