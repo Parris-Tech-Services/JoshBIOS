@@ -49,69 +49,69 @@ GitHub Actions run `35345509864` additionally proves that the legacy-BIOS bridge
 
 ## v0.3 — Real boot manager
 
-- [ ] versioned boot configuration;
-- [ ] normally hidden/short-timeout boot menu;
-- [ ] Josh OS default entry;
-- [ ] previous-known-good entry;
-- [ ] recovery entry;
-- [ ] diagnostics/development entry;
-- [ ] boot-attempt health state;
-- [ ] automatic menu after repeated failure;
-- [ ] kernel/module hashing;
-- [ ] typed error screen instead of silent halt.
+- [ ] **TASK-00607** versioned boot configuration;
+- [ ] **TASK-00608** normally hidden/short-timeout boot menu;
+- [ ] **TASK-00609** Josh OS default entry;
+- [ ] **TASK-00610** previous-known-good entry;
+- [ ] **TASK-00611** recovery entry;
+- [ ] **TASK-00612** diagnostics/development entry;
+- [ ] **TASK-00613** boot-attempt health state;
+- [ ] **TASK-00614** automatic menu after repeated failure;
+- [ ] **TASK-00615** kernel/module hashing;
+- [ ] **TASK-00616** typed error screen instead of silent halt.
 
 The current branded Limine **Josh OS Boot Manager** in JoshOS is the behaviour/reference to converge with, not a second permanent boot-manager architecture.
 
 ## v0.4 — UEFI + legacy adapters
 
-- [ ] isolate legacy BIOS services behind an adapter;
-- [ ] UEFI application/adapter;
-- [ ] GOP framebuffer;
-- [ ] UEFI memory map;
-- [ ] correct ExitBootServices flow;
-- [ ] entropy/RNG input where available;
-- [ ] UEFI chainload support only if needed;
-- [ ] BIOS and UEFI QEMU matrix.
+- [ ] **TASK-00617** isolate legacy BIOS services behind an adapter;
+- [ ] **TASK-00618** UEFI application/adapter;
+- [ ] **TASK-00619** GOP framebuffer;
+- [ ] **TASK-00620** UEFI memory map;
+- [ ] **TASK-00621** correct ExitBootServices flow;
+- [ ] **TASK-00622** entropy/RNG input where available;
+- [ ] **TASK-00623** UEFI chainload support only if needed;
+- [ ] **TASK-00624** BIOS and UEFI QEMU matrix.
 
 ## v0.5 — JoshBIOS firmware environment
 
-- [ ] firmware start/splash screen;
-- [ ] hardware inventory;
-- [ ] firmware setup;
-- [ ] one-time boot-device menu;
-- [ ] boot order;
-- [ ] recovery/diagnostics entry;
-- [ ] firmware settings storage;
-- [ ] platform-table hand-off;
-- [ ] measured/verified boot plumbing;
-- [ ] firmware update/rollback design.
+- [ ] **TASK-00625** firmware start/splash screen;
+- [ ] **TASK-00626** hardware inventory;
+- [ ] **TASK-00627** firmware setup;
+- [ ] **TASK-00628** one-time boot-device menu;
+- [ ] **TASK-00629** boot order;
+- [ ] **TASK-00630** recovery/diagnostics entry;
+- [ ] **TASK-00631** firmware settings storage;
+- [ ] **TASK-00632** platform-table hand-off;
+- [ ] **TASK-00633** measured/verified boot plumbing;
+- [ ] **TASK-00634** firmware update/rollback design.
 
 ## v0.6 — JoshFirmware platform integration
 
-- [ ] choose one exact development board/system;
-- [ ] document recovery/programmer procedure;
-- [ ] reproducible firmware-foundation build;
-- [ ] board-specific hardware bring-up;
-- [ ] DRAM/platform validation;
-- [ ] ACPI/SMBIOS sanity;
-- [ ] repeated cold/warm boot;
-- [ ] JoshBootloader hand-off;
-- [ ] canonical Josh kernel boot;
-- [ ] shutdown/reboot validation.
+- [ ] **TASK-00635** choose one exact development board/system;
+- [ ] **TASK-00636** document recovery/programmer procedure;
+- [ ] **TASK-00637** reproducible firmware-foundation build;
+- [ ] **TASK-00638** board-specific hardware bring-up;
+- [ ] **TASK-00639** DRAM/platform validation;
+- [ ] **TASK-00640** ACPI/SMBIOS sanity;
+- [ ] **TASK-00641** repeated cold/warm boot;
+- [ ] **TASK-00642** JoshBootloader hand-off;
+- [ ] **TASK-00643** canonical Josh kernel boot;
+- [ ] **TASK-00644** shutdown/reboot validation.
 
 ## v1.0 — Recoverable supported boot stack
 
 A v1.0 claim requires more than reaching a logo once:
 
-- [ ] explicit supported-hardware matrix;
-- [ ] external recovery path;
-- [ ] signed/reproducible release artefacts;
-- [ ] previous-known-good rollback;
-- [ ] automated QEMU end-to-end tests;
-- [ ] firmware → bootloader → canonical kernel integration test;
-- [ ] visible diagnostics for every critical failure stage;
-- [ ] documented security/update policy;
-- [ ] repeatable physical cold boot on at least one exact supported target.
+- [ ] **TASK-00645** explicit supported-hardware matrix;
+- [ ] **TASK-00646** external recovery path;
+- [ ] **TASK-00647** signed/reproducible release artefacts;
+- [ ] **TASK-00648** previous-known-good rollback;
+- [ ] **TASK-00649** automated QEMU end-to-end tests;
+- [ ] **TASK-00650** firmware → bootloader → canonical kernel integration test;
+- [ ] **TASK-00651** visible diagnostics for every critical failure stage;
+- [ ] **TASK-00652** documented security/update policy;
+- [ ] **TASK-00653** repeatable physical cold boot on at least one exact supported target.
 
 ## Engineering rule
 
