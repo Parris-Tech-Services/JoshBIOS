@@ -56,7 +56,7 @@ Replace fixed-sector assumptions.
 
 - [x] block-read abstraction;
 - [x] BIOS disk path isolated behind an INT 13h EDD adapter;
-- [ ] UEFI file/block path later;
+- [ ] **UN-20261024-025-0059** UEFI file/block path later;
 - [x] MBR/GPT partition discovery (GPT host-tested; MBR used by the integration image);
 - [x] FAT32 reader;
 - [x] 8.3 path lookup;
@@ -90,7 +90,7 @@ Must correctly:
 - [x] honour alignment;
 - [x] track loaded physical/virtual ranges;
 - [x] expose entry point;
-- [ ] reject unsupported relocation models explicitly.
+- [ ] **UN-20261024-025-0093** reject unsupported relocation models explicitly.
 
 Add host-side parser tests and malformed-image fixtures.
 
@@ -104,7 +104,7 @@ Add host-side parser tests and malformed-image fixtures.
 - [x] install temporary GDT;
 - [x] establish known stack;
 - [x] establish known register contract;
-- [ ] jump to canonical kernel entry.
+- [ ] **UN-20261024-025-0107** jump to canonical kernel entry.
 
 Document exact machine state at hand-off.
 
@@ -268,12 +268,12 @@ Recovery environment responsibilities belong above the bootloader.
 
 Before enforcing signatures everywhere, build the plumbing:
 
-- [ ] hash kernel/modules;
-- [ ] display hashes in diagnostics;
-- [ ] optional signature metadata;
-- [ ] verification result in Josh Boot Protocol;
-- [ ] development override clearly marked;
-- [ ] later release-key enforcement.
+- [ ] **UN-20261024-025-0271** hash kernel/modules;
+- [ ] **UN-20261024-025-0272** display hashes in diagnostics;
+- [ ] **UN-20261024-025-0273** optional signature metadata;
+- [ ] **UN-20261024-025-0274** verification result in Josh Boot Protocol;
+- [ ] **UN-20261024-025-0275** development override clearly marked;
+- [ ] **UN-20261024-025-0276** later release-key enforcement.
 
 Never silently boot an image that failed a policy-required verification.
 
